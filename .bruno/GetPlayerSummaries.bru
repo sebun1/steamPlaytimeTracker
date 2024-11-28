@@ -1,0 +1,16 @@
+meta {
+  name: GetPlayerSummaries
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={{API_KEY}}&steamids={{steamid1}},{{steamid2}},{{steamid3}}
+  body: none
+  auth: none
+}
+
+params:query {
+  key: {{API_KEY}}
+  steamids: {{steamid1}},{{steamid2}},{{steamid3}}
+}
