@@ -13,10 +13,11 @@ var env map[string]string
 func init() {
 	hadError := false
 
-	env, err := sptt.GetEnv(".env")
+	var err error
+	env, err = sptt.GetEnv(".env")
 	if err != nil {
 		log.Fatal(err)
-		hadError = true
+		os.Exit(1)
 	}
 
 	if v, ok := env["LOG_LEVEL"]; ok || v != "" {
@@ -49,7 +50,7 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	api := sptt.SteamAPI{APIKey: env["STEAM_API_KEY"]}
+	api := sptt.NewSteamAPI(env["STEAM_API_KEY"])
 
 	db, err := sptt.NewDB(env["DB_USER"], env["DB_PASSWORD"], env["DB_NAME"])
 	if err != nil {
@@ -82,9 +83,17 @@ func main() {
 		return
 	}
 	log.Debug(summaries[ids[0]].Personaname)
+
+	games, err := api.GetOwnedGames(ctx, ids[0], []string{"493520"})
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Debug(games["493520"].Name, games["493520"].Playtime)
 }
 
 func track(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI) {
+	//TODO: When APIs return errors, they should be handled gracefully, DO NOT PANIC
 	ids, err := db.GetSteamIDs(ctx)
 	if err != nil {
 		log.Error(err)

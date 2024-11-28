@@ -1,7 +1,10 @@
 .env
 test/
-steamPlaytimeTracker
 .notes.md
-.bruno/
 Session.vim
+.vscode/
 
+
+# Executables
+steamPlaytimeTracker*
+sptt*
