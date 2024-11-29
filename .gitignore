@@ -4,8 +4,7 @@ test/
 Session.vim
 .vscode/
 
-
 # Executables
 steamPlaytimeTracker*
-sptt*
-spt*
+/sptt.*
+/spt.*
