@@ -69,6 +69,10 @@ func NewDB(user, pwd, dbname string) (*DB, error) {
 	return thisdb, nil
 }
 
+func (d *DB) Ping(ctx context.Context) error {
+	return d.db.PingContext(ctx)
+}
+
 func (d *DB) Close() {
 	d.db.Close()
 }

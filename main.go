@@ -70,9 +70,31 @@ func main() {
 		log.Fatal("API key validation failed.")
 		return
 	}
+
+	// Test DB connection
+	err = db.Ping(ctx)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	// Run routines for api and monitor
+	/*
+		go spttAPI(ctx, db, api)
+		go monitor(ctx, db, api)
+	*/
 }
 
-func track(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI) {
+// This function serves an API endpoint for the player service
+// obtaining information on previous player sessions and games
+func spttAPI(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI) {
+
+}
+
+// This function is the main process for monitoring
+// games and playtime sessions for differen steam
+// users
+func monitor(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI) {
 	//TODO: When APIs return errors, they should be handled gracefully, DO NOT PANIC
 	ids, err := db.GetSteamIDs(ctx)
 	if err != nil {

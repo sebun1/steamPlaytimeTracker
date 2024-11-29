@@ -34,21 +34,22 @@ CREATE TABLE IF NOT EXISTS games (
     publisher text,
     developer text,
     header_image text,
-    recommendations integer NOT NULL,
+    recommendations integer,
     PRIMARY KEY (appid)
 );
 
 -- Registered Users
 CREATE TABLE IF NOT EXISTS users (
 	steamid bigint,
-	name text,
-	profileurl text,
-	avatar text,
+	username text UNIQUE NOT NULL, -- Internal username
+	alias text, -- Steam display name
+	profileurl text, -- URL to Steam profile
+	avatar text, -- URL to avatar image
 	timezone text, -- TODO: Subject to change
-	enabled boolean NOT NULL,
+	active boolean NOT NULL,
 	public boolean NOT NULL,
 	PRIMARY KEY (steamid)
 );
 
-INSERT INTO users (steamid, enabled, public) VALUES (76561198854733565, true, true); -- Takina
-INSERT INTO users (steamid, enabled, public) VALUES (76561199079920297, true, true); -- 7
+INSERT INTO users (steamid, username, active, public) VALUES (76561198854733565, "takina", true, true);
+INSERT INTO users (steamid, username, active, public) VALUES (76561199079920297, "7", true, true);
