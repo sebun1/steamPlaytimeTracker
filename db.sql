@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS users;
 
 -- Active Sessions (Temporary Data)
 CREATE TABLE IF NOT EXISTS active_sessions (
-    steamid char(17),
+    steamid bigint,
     utcstart timestamp,
 	playtime_forever integer, -- Total playtime in minutes according to Steam API
     appid integer,
@@ -17,9 +17,10 @@ CREATE TABLE IF NOT EXISTS active_sessions (
 
 -- Sessions (History/Permanent Data)
 CREATE TABLE IF NOT EXISTS sessions (
-    steamid varchar(17),
+    steamid bigint,
     utcstart timestamp,
     utcend timestamp,
+	playtime_forever integer, -- Total playtime in minutes according to Steam API
     appid integer,
     PRIMARY KEY (steamid, utcstart)
 );
@@ -39,7 +40,7 @@ CREATE TABLE IF NOT EXISTS games (
 
 -- Registered Users
 CREATE TABLE IF NOT EXISTS users (
-	steamid varchar(17),
+	steamid bigint,
 	name text,
 	profileurl text,
 	avatar text,
@@ -49,5 +50,5 @@ CREATE TABLE IF NOT EXISTS users (
 	PRIMARY KEY (steamid)
 );
 
-INSERT INTO users (steamid, enabled, public) VALUES ('76561198854733565', true, true); -- Takina
-INSERT INTO users (steamid, enabled, public) VALUES ('76561199079920297', true, true); -- 7
+INSERT INTO users (steamid, enabled, public) VALUES (76561198854733565, true, true); -- Takina
+INSERT INTO users (steamid, enabled, public) VALUES (76561199079920297, true, true); -- 7

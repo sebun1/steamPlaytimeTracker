@@ -70,26 +70,6 @@ func main() {
 		log.Fatal("API key validation failed.")
 		return
 	}
-
-	ids, err := db.GetSteamIDs(ctx)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	summaries, err := api.GetPlayerSummaries(ctx, ids)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	log.Debug(summaries[ids[0]].Personaname)
-
-	games, err := api.GetOwnedGames(ctx, ids[0], []string{"493520"})
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	log.Debug(games["493520"].Name, games["493520"].Playtime)
 }
 
 func track(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI) {

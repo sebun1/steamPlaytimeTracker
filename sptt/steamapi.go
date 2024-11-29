@@ -15,6 +15,12 @@ import (
 	"github.com/sebun1/steamPlaytimeTracker/log"
 )
 
+type SteamAPI struct {
+	apiKey string
+	client *http.Client
+}
+
+// Errors associated with Steam API operations
 const (
 	ErrForbidden   = APIError("API responded with 403 Forbidden")
 	ErrEmptyGames  = APIError("API returned 0 games")
@@ -27,47 +33,62 @@ func (e APIError) Error() string {
 	return string(e)
 }
 
-type SteamAPI struct {
-	apiKey string
-	client *http.Client
+// Data Types for certain steam attributes
+type SteamID uint64
+
+func (s *SteamID) String() string {
+	return strconv.FormatUint(uint64(*s), 10)
 }
 
-type PlayerSummary struct {
-	Steamid       string `json:"steamid"`
-	Visibility    int    `json:"communityvisibilitystate"` // 1: private, 3: public
-	Profilestate  int    `json:"profilestate"`
-	Personaname   string `json:"personaname"`
-	Profileurl    string `json:"profileurl"`
-	Avatar        string `json:"avatarfull"`
-	Country       string `json:"loccountrycode"`
-	Gameid        string `json:"gameid"`
-	Gameextrainfo string `json:"gameextrainfo"`
+func (s *SteamID) UnmarshalJSON(b []byte) error {
+	var idStr string
+	var id uint64
+	if err := json.Unmarshal(b, &idStr); err != nil {
+		err = json.Unmarshal(b, &id)
+		if err != nil {
+			return err
+		}
+	} else {
+		id, err = strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	*s = SteamID(id)
+	return nil
 }
 
-type PlayerSummaryResponse struct {
-	Response struct {
-		Players []PlayerSummary `json:"players"`
-	} `json:"response"`
+type AppID uint32
+
+func (a *AppID) String() string {
+	return strconv.FormatUint(uint64(*a), 10)
 }
 
-type OwnedGame struct {
-	Appid           int    `json:"appid"`
-	Name            string `json:"name"`
-	Playtime        int    `json:"playtime_forever"`      // in minutes
-	RTimeLastPlayed int    `json:"rtime_last_played"`     // Unix timestamp
-	PlaytimeDc      int    `json:"playtime_disconnected"` // in minutes
+func (a *AppID) UnmarshalJSON(b []byte) error {
+	var idStr string
+	var id uint64
+	if err := json.Unmarshal(b, &idStr); err != nil {
+		err = json.Unmarshal(b, &id)
+		if err != nil {
+			return err
+		}
+	} else {
+		id, err = strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			return err
+		}
+	}
+
+	*a = AppID(id)
+	return nil
 }
 
-type OwnedGamesResponse struct {
-	Response struct {
-		GameCount int         `json:"game_count"`
-		Games     []OwnedGame `json:"games"`
-	} `json:"response"`
-}
+// Data Types for Steam API responses
 
 type GameData struct {
 	Name             string   `json:"name"`
-	SteamAppID       uint32   `json:"steam_appid"`
+	AppID            AppID    `json:"steam_appid"`
 	ShortDescription string   `json:"short_description"`
 	HeaderImage      string   `json:"header_image"`
 	Developers       []string `json:"developers"`
@@ -91,6 +112,8 @@ type GameDataResponse struct {
 	}
 }
 
+// NewSteamAPI creates a new SteamAPI object
+// SteamAPI itself should never be declared directly
 func NewSteamAPI(apiKey string) *SteamAPI {
 	return &SteamAPI{
 		apiKey: apiKey,
@@ -100,19 +123,37 @@ func NewSteamAPI(apiKey string) *SteamAPI {
 }
 
 func (s *SteamAPI) TestAPIKey(ctx context.Context) (err error) {
-	_, err = s.GetPlayerSummaries(ctx, []string{"76561198000000000"})
+	_, err = s.GetPlayerSummaries(ctx, []SteamID{76561198000000000})
 	return err
 }
 
+type PlayerSummary struct {
+	SteamID       SteamID `json:"steamid"`
+	Visibility    int     `json:"communityvisibilitystate"` // 1: private, 3: public
+	Profilestate  int     `json:"profilestate"`
+	Personaname   string  `json:"personaname"`
+	Profileurl    string  `json:"profileurl"`
+	Avatar        string  `json:"avatarfull"`
+	Country       string  `json:"loccountrycode"`
+	Gameid        AppID   `json:"gameid"`
+	Gameextrainfo string  `json:"gameextrainfo"`
+}
+
+type PlayerSummaryResponse struct {
+	Response struct {
+		Players []PlayerSummary `json:"players"`
+	} `json:"response"`
+}
+
 // TODO: Steam only allows 100 steamids per request, need to handle this if more than 100
-func (s *SteamAPI) GetPlayerSummaries(ctx context.Context, steamids []string) (summaries map[string]PlayerSummary, err error) {
+func (s *SteamAPI) GetPlayerSummaries(ctx context.Context, steamids []SteamID) (summaries map[SteamID]PlayerSummary, err error) {
 	if len(steamids) == 0 {
 		return nil, fmt.Errorf("steamids cannot be empty")
 	}
 
-	var steamidsStr string = steamids[0]
+	var steamidsStr string = steamids[0].String()
 	for i := 1; i < len(steamids); i++ {
-		steamidsStr += "," + steamids[i]
+		steamidsStr += "," + steamids[i].String()
 	}
 	url := "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=" + s.apiKey + "&steamids=" + steamidsStr
 
@@ -133,29 +174,37 @@ func (s *SteamAPI) GetPlayerSummaries(ctx context.Context, steamids []string) (s
 		return nil, fmt.Errorf("steam api returned %d summaries, expected %d", len(allSummaries), len(steamids))
 	}
 
-	summaries = make(map[string]PlayerSummary)
+	summaries = make(map[SteamID]PlayerSummary)
 	for _, summary := range allSummaries {
-		summaries[summary.Steamid] = summary
+		summaries[summary.SteamID] = summary
 	}
 	return
 }
 
 // TODO: This API is rate limited, only 200 requests per 5 minutes
 // if we want to update more than 200 games, we need to wait..
-func (s *SteamAPI) GetGameDetails(ctx context.Context, appid string) (resp interface{}, err error) {
-	url := "https://store.steampowered.com/api/appdetails?appids=" + appid
+func (s *SteamAPI) GetGameDetails(ctx context.Context, appid AppID) (resp interface{}, err error) {
+	url := "https://store.steampowered.com/api/appdetails?appids=" + appid.String()
 	resp, err = s.getRespBody(ctx, url)
 	return
 }
 
-func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid string, appids []string) (games map[string]OwnedGame, err error) {
-	if len(steamid) != 17 {
-		return nil, fmt.Errorf("steamid should be 17 characters long")
-	}
-	if len(appids) == 0 {
-		return nil, fmt.Errorf("appids cannot be empty")
-	}
+type OwnedGame struct {
+	AppID           AppID  `json:"appid"`
+	Name            string `json:"name"`
+	Playtime        int    `json:"playtime_forever"`      // in minutes
+	RTimeLastPlayed int    `json:"rtime_last_played"`     // Unix timestamp
+	PlaytimeDc      int    `json:"playtime_disconnected"` // in minutes
+}
 
+type OwnedGamesResponse struct {
+	Response struct {
+		GameCount int         `json:"game_count"`
+		Games     []OwnedGame `json:"games"`
+	} `json:"response"`
+}
+
+func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []AppID) (games map[AppID]OwnedGame, err error) {
 	type inputJSON struct {
 		Steamid                uint64   `json:"steamid"`
 		IncludeAppInfo         bool     `json:"include_appinfo"`
@@ -163,25 +212,15 @@ func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid string, appids []s
 		Appids                 []uint32 `json:"appids_filter"`
 	}
 
-	steamidUint, err := strconv.ParseUint(steamid, 10, 64)
-	if err != nil {
-		return nil, wrapErr(err)
-	}
-
-	appidsUint := make([]uint32, len(appids))
-	for i, appid := range appids {
-		appidUint, err := strconv.ParseUint(appid, 10, 32)
-		if err != nil {
-			return nil, wrapErr(err)
-		}
-		appidsUint[i] = uint32(appidUint)
-	}
-
 	jsonInputPrim := inputJSON{
-		Steamid:                steamidUint,
+		Steamid:                uint64(steamid),
 		IncludeAppInfo:         true,
 		IncludePlayedFreeGames: true,
-		Appids:                 appidsUint,
+		Appids:                 make([]uint32, len(appids)),
+	}
+
+	for i, appid := range appids {
+		jsonInputPrim.Appids[i] = uint32(appid)
 	}
 
 	jsonStrBytes, err := json.Marshal(jsonInputPrim)
@@ -213,13 +252,15 @@ func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid string, appids []s
 	}
 
 	allGames := resp.Response.Games
-	games = make(map[string]OwnedGame)
+	games = make(map[AppID]OwnedGame)
 	for _, game := range allGames {
-		games[fmt.Sprint(game.Appid)] = game
+		games[game.AppID] = game
 	}
 	return
 }
 
+// getRespBody sends a GET request to the given URL and returns the response body
+// It also checks the response status code and ensures it is 200
 func (s *SteamAPI) getRespBody(ctx context.Context, url string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, RequestTimeout*time.Second)
 	defer cancel()
