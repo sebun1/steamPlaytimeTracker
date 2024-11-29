@@ -11,6 +11,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	ErrSteamIDExists = DBError("SteamID already exists in the database")
+)
+
+type DBError string
+
+func (e DBError) Error() string {
+	return string(e)
+}
+
 type DB struct {
 	db *sql.DB
 }
@@ -82,7 +92,32 @@ func (d *DB) GetSteamIDs(ctx context.Context) ([]string, error) {
 }
 
 func (d *DB) AddSteamID(ctx context.Context, steamid []string) error {
-	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO users(steamid, enabled, public) VALUES(?, true, true)")
+	rows, err := d.db.QueryContext(ctx, "SELECT steamid FROM users WHERE steamid = $1", steamid)
+	if err != nil {
+		return wrapErr(err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		return ErrSteamIDExists
+	}
+
+	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO users(steamid, enabled, public) VALUES(?, true, true) ON CONFLICT (steamid) DO NOTHING")
+	if err != nil {
+		return wrapErr(err)
+	}
+	defer stmt.Close()
+
+	for _, id := range steamid {
+		if _, err = stmt.Exec(id); err != nil {
+			return wrapErr(err)
+		}
+	}
+	return nil
+}
+
+func (d *DB) RemoveSteamID(ctx context.Context, steamid []string) error {
+	stmt, err := d.db.PrepareContext(ctx, "DELETE FROM users WHERE steamid = ?")
 	if err != nil {
 		return wrapErr(err)
 	}

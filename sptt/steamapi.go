@@ -65,6 +65,32 @@ type OwnedGamesResponse struct {
 	} `json:"response"`
 }
 
+type GameData struct {
+	Name             string   `json:"name"`
+	SteamAppID       uint32   `json:"steam_appid"`
+	ShortDescription string   `json:"short_description"`
+	HeaderImage      string   `json:"header_image"`
+	Developers       []string `json:"developers"`
+	Publishers       []string `json:"publishers"`
+	Platforms        struct {
+		Windows bool `json:"windows"`
+		Mac     bool `json:"mac"`
+		Linux   bool `json:"linux"`
+	}
+	ReleaseDate struct {
+		ComingSoon bool   `json:"coming_soon"`
+		Date       string `json:"date"`
+	}
+	Background string `json:"background_raw"`
+}
+
+type GameDataResponse struct {
+	Games map[string]struct {
+		Success bool     `json:"success"`
+		Data    GameData `json:"data"`
+	}
+}
+
 func NewSteamAPI(apiKey string) *SteamAPI {
 	return &SteamAPI{
 		apiKey: apiKey,
