@@ -36,7 +36,7 @@ func TestSteamID(t *testing.T) {
 	})
 
 	t.Run("Insert SteamID", func(t *testing.T) {
-		err := db.AddSteamID(ctx, []SteamID{76561198000000000})
+		err := db.AddSteamID(ctx, SteamID(76561198000000000), "Test")
 		if err != nil {
 			t.Errorf("Expected nil, got %v", err)
 		}
@@ -107,7 +107,7 @@ func TestSessions(t *testing.T) {
 	})
 
 	t.Run("Remove Active Session", func(t *testing.T) {
-		err := db.RemoveActiveSession(ctx, steamid, tm)
+		err := db.RemoveActiveSession(ctx, steamid, appid)
 		if err != nil {
 			t.Errorf("Expected nil, got %v", err)
 		}

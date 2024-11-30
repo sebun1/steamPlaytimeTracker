@@ -135,7 +135,7 @@ type PlayerSummary struct {
 	Profileurl    string  `json:"profileurl"`
 	Avatar        string  `json:"avatarfull"`
 	Country       string  `json:"loccountrycode"`
-	Gameid        AppID   `json:"gameid"`
+	GameID        AppID   `json:"gameid"`
 	Gameextrainfo string  `json:"gameextrainfo"`
 }
 
@@ -143,6 +143,19 @@ type PlayerSummaryResponse struct {
 	Response struct {
 		Players []PlayerSummary `json:"players"`
 	} `json:"response"`
+}
+
+func (s *SteamAPI) GetPlayerSummary(ctx context.Context, steamid SteamID) (summary PlayerSummary, err error) {
+	summaries, err := s.GetPlayerSummaries(ctx, []SteamID{steamid})
+	if err != nil {
+		return
+	}
+
+	summary, ok := summaries[steamid]
+	if !ok {
+		return summary, fmt.Errorf("steamid %d not found in response", steamid)
+	}
+	return
 }
 
 // TODO: Steam only allows 100 steamids per request, need to handle this if more than 100
@@ -192,16 +205,30 @@ func (s *SteamAPI) GetGameDetails(ctx context.Context, appid AppID) (resp interf
 type OwnedGame struct {
 	AppID           AppID  `json:"appid"`
 	Name            string `json:"name"`
-	Playtime        int    `json:"playtime_forever"`      // in minutes
-	RTimeLastPlayed int    `json:"rtime_last_played"`     // Unix timestamp
-	PlaytimeDc      int    `json:"playtime_disconnected"` // in minutes
+	Playtime        uint32 `json:"playtime_forever"`      // in minutes
+	RTimeLastPlayed uint32 `json:"rtime_last_played"`     // Unix timestamp
+	PlaytimeDc      uint32 `json:"playtime_disconnected"` // in minutes
 }
 
 type OwnedGamesResponse struct {
 	Response struct {
-		GameCount int         `json:"game_count"`
+		GameCount uint        `json:"game_count"`
 		Games     []OwnedGame `json:"games"`
 	} `json:"response"`
+}
+
+func (s *SteamAPI) GetOwnedGame(ctx context.Context, steamid SteamID, appid AppID) (OwnedGame, error) {
+	game := OwnedGame{}
+	games, err := s.GetOwnedGames(ctx, steamid, []AppID{appid})
+	if err != nil {
+		return game, err
+	}
+
+	game, ok := games[appid]
+	if !ok {
+		return game, fmt.Errorf("appid %d not found in response", appid)
+	}
+	return game, nil
 }
 
 func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []AppID) (games map[AppID]OwnedGame, err error) {

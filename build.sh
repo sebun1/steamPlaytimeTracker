@@ -1,5 +1,5 @@
 cd sptt
-go test -v
+go test -failfast -v
 cd ..
 go build -o spt
 

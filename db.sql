@@ -1,18 +1,18 @@
 -- DROP TABLE FOR DEV ENVIRONMENT
-DROP TABLE IF EXISTS active_sessions;
-DROP TABLE IF EXISTS sessions;
-DROP TABLE IF EXISTS games;
-DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS active_sessions;
+-- DROP TABLE IF EXISTS sessions;
+-- DROP TABLE IF EXISTS games;
+-- DROP TABLE IF EXISTS users;
 
 
 
 -- Active Sessions (Temporary Data)
 CREATE TABLE IF NOT EXISTS active_sessions (
     steamid bigint,
+    appid integer,
     utcstart timestamp,
 	playtime_forever integer, -- Total playtime in minutes according to Steam API
-    appid integer,
-    PRIMARY KEY (steamid, utcstart)
+    PRIMARY KEY (steamid, appid)
 );
 
 -- Sessions (History/Permanent Data)
@@ -50,6 +50,3 @@ CREATE TABLE IF NOT EXISTS users (
 	public boolean NOT NULL,
 	PRIMARY KEY (steamid)
 );
-
-INSERT INTO users (steamid, username, active, public) VALUES (76561198854733565, "takina", true, true);
-INSERT INTO users (steamid, username, active, public) VALUES (76561199079920297, "7", true, true);

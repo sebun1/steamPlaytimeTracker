@@ -26,7 +26,8 @@ type DB struct {
 	db *sql.DB
 }
 
-// This is for testing purposes only
+// For testing purposes only.
+// Create db instance with a custom sql file.
 func newDBWithSQLFile(user, pwd, dbname, sqlfile string) (*DB, error) {
 	//ssl_mode := "verify-full"
 	ssl_mode := "disable"
@@ -48,6 +49,8 @@ func newDBWithSQLFile(user, pwd, dbname, sqlfile string) (*DB, error) {
 	return thisdb, nil
 }
 
+// Creates a new database instance.
+// Expects a steamtrack schema.
 func NewDB(user, pwd, dbname string) (*DB, error) {
 	//ssl_mode := "verify-full"
 	ssl_mode := "disable"
@@ -69,14 +72,18 @@ func NewDB(user, pwd, dbname string) (*DB, error) {
 	return thisdb, nil
 }
 
+// Pings underlying database instance
 func (d *DB) Ping(ctx context.Context) error {
 	return d.db.PingContext(ctx)
 }
 
+// Closes underlying database instance
 func (d *DB) Close() {
 	d.db.Close()
 }
 
+// Initializes database with schema.
+// Reads from `db.sql` file.
 func (d *DB) init(filename string) error {
 	var query []byte
 	query, err := os.ReadFile(filename)
@@ -97,6 +104,7 @@ func (d *DB) init(filename string) error {
 	return nil
 }
 
+// Queries steam ID of all registered users
 func (d *DB) GetSteamIDs(ctx context.Context) ([]SteamID, error) {
 	rows, err := d.db.QueryContext(ctx, "SELECT steamid FROM users")
 	if err != nil {
@@ -121,28 +129,26 @@ func (d *DB) GetSteamIDs(ctx context.Context) ([]SteamID, error) {
 	return steamids, nil
 }
 
-func (d *DB) AddSteamID(ctx context.Context, ids []SteamID) error {
-	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO users(steamid, enabled, public) VALUES($1, true, true) ON CONFLICT (steamid) DO NOTHING")
+// Add steam ID to database with minimal information
+func (d *DB) AddSteamID(ctx context.Context, id SteamID, uname string) error {
+	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO users(steamid, username, active, public) VALUES($1, $2, true, true) ON CONFLICT (steamid) DO NOTHING")
 	if err != nil {
 		return wrapErr(err)
 	}
 	defer stmt.Close()
 
-	for _, id := range ids {
-		res, err := stmt.ExecContext(ctx, id)
-		if err != nil {
-			return wrapErr(err)
-		}
+	res, err := stmt.ExecContext(ctx, id, uname)
+	if err != nil {
+		return wrapErr(err)
+	}
 
-		affected, err := res.RowsAffected()
-		if err != nil {
-			log.Error("Error getting rows affected: ", err)
-			continue
-		}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		log.Error("Error getting rows affected: ", err)
+	}
 
-		if affected == 0 {
-			log.Warn("SteamID", id, "already exist in the database")
-		}
+	if affected == 0 {
+		log.Warn("SteamID", id, "already exist in the database")
 	}
 	return nil
 }
@@ -207,28 +213,11 @@ func (d *DB) GetActiveSessions(ctx context.Context, id SteamID) (map[AppID]Activ
 }
 
 // Adds an active session to the database
-// This is better for when we handle users in
-// parallel; each user can only have one session
-// added at a time
 func (d *DB) AddActiveSession(ctx context.Context, session ActiveSession) error {
-	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO active_sessions(steamid, utcstart, playtime_forever, appid) VALUES($1, $2, $3, $4)")
-	if err != nil {
-		return wrapErr(err)
-	}
-	defer stmt.Close()
-
-	_, err = stmt.ExecContext(ctx, session.SteamID, session.UTCStart, session.PlaytimeForever, session.AppID)
-	if err != nil {
-		return wrapErr(err)
-	}
-
-	return nil
+	return d.AddActiveSessions(ctx, []ActiveSession{session})
 }
 
 // Adds multiple active sessions to database
-// Prefer AddActiveSession for single session
-// Overhead of PrepareContext might be negligible
-// even for multiple sessions
 func (d *DB) AddActiveSessions(ctx context.Context, sessions []ActiveSession) error {
 	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO active_sessions(steamid, utcstart, playtime_forever, appid) VALUES($1, $2, $3, $4)")
 	if err != nil {
@@ -252,14 +241,14 @@ func (d *DB) AddActiveSessions(ctx context.Context, sessions []ActiveSession) er
 //
 // Currently unused. User cannot cancel sessions,
 // everything is automatic
-func (d *DB) RemoveActiveSession(ctx context.Context, steamid SteamID, utcstart time.Time) error {
-	stmt, err := d.db.PrepareContext(ctx, "DELETE FROM active_sessions WHERE steamid = $1 AND utcstart = $2")
+func (d *DB) RemoveActiveSession(ctx context.Context, steamid SteamID, appid AppID) error {
+	stmt, err := d.db.PrepareContext(ctx, "DELETE FROM active_sessions WHERE steamid = $1 AND appid = $2")
 	if err != nil {
 		return wrapErr(err)
 	}
 	defer stmt.Close()
 
-	res, err := stmt.ExecContext(ctx, steamid, utcstart)
+	res, err := stmt.ExecContext(ctx, steamid, appid)
 	if err != nil {
 		return wrapErr(err)
 	}
@@ -270,7 +259,7 @@ func (d *DB) RemoveActiveSession(ctx context.Context, steamid SteamID, utcstart 
 	}
 
 	if affected == 0 {
-		log.Warn("Active session not found: ", steamid, utcstart)
+		log.Warn("Active session not found: ", steamid, appid)
 	}
 
 	return nil
@@ -312,6 +301,7 @@ type Session struct {
 	AppID           AppID
 }
 
+// Returns all concluded sessions for a steamid
 func (d *DB) GetSessions(ctx context.Context, id SteamID) ([]Session, error) {
 	rows, err := d.db.QueryContext(ctx, "SELECT steamid, utcstart, utcend, playtime_forever, appid FROM sessions WHERE steamid = $1 ORDER BY utcstart ASC", id)
 	if err != nil {
@@ -336,6 +326,7 @@ func (d *DB) GetSessions(ctx context.Context, id SteamID) ([]Session, error) {
 	return sessions, nil
 }
 
+// Add a concluded session to the database
 func (d *DB) AddSession(ctx context.Context, session Session) error {
 	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO sessions(steamid, utcstart, utcend, playtime_forever, appid) VALUES($1, $2, $3, $4, $5)")
 	if err != nil {
@@ -360,15 +351,17 @@ type GameCache struct {
 	Recommendations uint32
 }
 
-func (d *DB) GetGameCache(ctx context.Context, appid AppID) (GameCache, error) {
+// GetGameCache returns game information from cache
+func (d *DB) GetGameCache(ctx context.Context, appid AppID) (*GameCache, error) {
 	var game GameCache
 	err := d.db.QueryRowContext(ctx, "SELECT appid, name, publisher, developer, header_image, recommendations FROM game_cache WHERE appid = $1", appid).Scan(&game.AppID, &game.Name, &game.Publisher, &game.Developer, &game.HeaderImage, &game.Recommendations)
 	if err != nil {
-		return game, err
+		return nil, err
 	}
-	return game, nil
+	return &game, nil
 }
 
+// AddGameCache adds game information to cache
 func (d *DB) AddGameCache(ctx context.Context, game GameCache) error {
 	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO game_cache(appid, name, publisher, developer, header_image, recommendations) VALUES($1, $2, $3, $4, $5, $6)")
 	if err != nil {
