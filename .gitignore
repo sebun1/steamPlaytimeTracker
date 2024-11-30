@@ -1,0 +1,10 @@
+.env
+test/
+.notes.md
+Session.vim
+.vscode/
+
+# Executables
+steamPlaytimeTracker*
+/sptt.*
+/spt

@@ -1,0 +1,17 @@
+meta {
+  name: GetGameDetails
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://store.steampowered.com/api/appdetails?appids=2696480
+  body: none
+  auth: none
+}
+
+params:query {
+  appids: 2696480
+  ~appids: 1068820
+  ~filters: name,steam_appid,header_image
+}
