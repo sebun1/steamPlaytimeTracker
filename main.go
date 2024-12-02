@@ -152,7 +152,7 @@ func monitor(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, notifChan cha
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				log.Info("Running user updates for", time.Now().UTC())
+				log.Info("Running user updates for at", time.Now().UTC())
 				summaries, err := api.GetPlayerSummaries(ctx, ids)
 				if err != nil {
 					log.Error("Error while trying to get player summaries: ", err)
@@ -218,6 +218,7 @@ func updateUser(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, id sptt.St
 
 			for _, sess := range activeSessions {
 				if game, ok := games[sess.AppID]; ok {
+					// TODO: Convert to Duration for much easier comparison
 					playtimeDiffSteam := game.Playtime - sess.PlaytimeForever
 					playtimeDiffServer := uint32(now.Sub(sess.UTCStart).Abs().Minutes())
 
@@ -230,7 +231,7 @@ func updateUser(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, id sptt.St
 							PlaytimeForever: game.Playtime,
 							AppID:           sess.AppID,
 						}
-						// NOTE: This could be dangerous, we are making many assumptions here
+						// BUG: We need to take the absolute value of the difference
 						if playtimeDiffServer-playtimeDiffSteam > 3 { // 3 minutes difference max
 							log.Warn("Significant playtime difference for ActiveSession ", sess, " for user ", id, ", durationSteam: ", playtimeDiffSteam, ", durationServer: ", playtimeDiffServer)
 							log.Info("Using Steam playtime as reference")
