@@ -8,3 +8,6 @@ Session.vim
 steamPlaytimeTracker*
 /sptt.*
 /spt
+
+# macOS
+.DS_Store
