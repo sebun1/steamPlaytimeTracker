@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     PRIMARY KEY (steamid, utcstart)
 );
 
+CREATE INDEX IF NOT EXISTS idx_sessions_steamid ON sessions(steamid);
+
 -- Games (Cached)
 -- Cache game information mentioned in sessions
 -- Updates every hour

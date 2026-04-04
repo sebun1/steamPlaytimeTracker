@@ -10,6 +10,7 @@ import (
 
 	"github.com/sebun1/steamPlaytimeTracker/log"
 	"github.com/sebun1/steamPlaytimeTracker/sptt"
+	"github.com/sebun1/steamPlaytimeTracker/sptt/api"
 )
 
 var env map[string]string
@@ -59,17 +60,22 @@ func main() {
 	cancelChan := make(chan os.Signal, 1)
 	signal.Notify(cancelChan, os.Interrupt, syscall.SIGTERM)
 
-	api := sptt.NewSteamAPI(env["STEAM_API_KEY"])
+	stApi := sptt.NewSteamAPI(env["STEAM_API_KEY"])
 
 	db, err := sptt.NewDB(env["DB_USER"], env["DB_PASSWORD"], env["DB_NAME"])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	defer db.Close()
+	defer func(db *sptt.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Errorf("Error while closing database connection: %e", err)
+		}
+	}(db)
 
 	// Test API key
-	err = api.TestAPIKey(ctx)
+	err = stApi.TestAPIKey(ctx)
 	if err != nil {
 		if err == sptt.ErrForbidden {
 			log.Fatal("API key is invalid, steam responded with 403 Forbidden.")
@@ -89,10 +95,12 @@ func main() {
 
 	notifChan := make(chan sptt.Notif, 10)
 
-	// Run routines for api and monitor
+	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg)
+
+	// Run routines for stApi and monitor
 	wg.Add(2)
-	go monitor(ctx, db, api, notifChan, &wg)
-	go spttAPI(ctx, db, api, notifChan, &wg)
+	go monitor(ctx, db, stApi, notifChan, &wg)
+	go apiServer.Run()
 
 	log.Info("Steam Playtime Tracker started.")
 
@@ -102,13 +110,6 @@ func main() {
 	wg.Wait()
 	close(notifChan)
 	log.Info("Exiting...")
-}
-
-// This function serves an API endpoint for the player service
-// obtaining information on previous player sessions and games
-func spttAPI(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, notifChan chan sptt.Notif, wg *sync.WaitGroup) {
-	defer wg.Done()
-
 }
 
 // Main process for monitoring games and
@@ -255,7 +256,10 @@ func updateUser(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, id sptt.St
 					}
 				} else {
 					log.Error("Game ", sess.AppID, " not found in owned games for user ", id, ", releasing session")
-					db.RemoveActiveSession(ctx, id, sess.AppID)
+					err = db.RemoveActiveSession(ctx, id, sess.AppID)
+					if err != nil {
+
+					}
 				}
 			}
 		}

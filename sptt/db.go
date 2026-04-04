@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/sebun1/steamPlaytimeTracker/log"
-
 	_ "github.com/lib/pq"
+	"github.com/sebun1/steamPlaytimeTracker/log"
 )
 
 const (
@@ -78,8 +78,8 @@ func (d *DB) Ping(ctx context.Context) error {
 }
 
 // Closes underlying database instance
-func (d *DB) Close() {
-	d.db.Close()
+func (d *DB) Close() error {
+	return d.db.Close()
 }
 
 // Initializes database with schema.
@@ -110,9 +110,13 @@ func (d *DB) GetSteamIDs(ctx context.Context) ([]SteamID, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
-	steamids := []SteamID{}
+	var steamids []SteamID
 	for rows.Next() {
 		var steamid SteamID
 		err := rows.Scan(&steamid)
@@ -135,7 +139,11 @@ func (d *DB) AddSteamID(ctx context.Context, id SteamID, uname string) error {
 	if err != nil {
 		return wrapErr(err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	res, err := stmt.ExecContext(ctx, id, uname)
 	if err != nil {
@@ -158,7 +166,11 @@ func (d *DB) RemoveSteamID(ctx context.Context, steamid []SteamID) error {
 	if err != nil {
 		return wrapErr(err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	for _, id := range steamid {
 		res, err := stmt.Exec(id)
@@ -193,7 +205,11 @@ func (d *DB) GetActiveSessions(ctx context.Context, id SteamID) (map[AppID]Activ
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	sessionsMap := make(map[AppID]ActiveSession)
 	for rows.Next() {
@@ -212,11 +228,15 @@ func (d *DB) GetActiveSessions(ctx context.Context, id SteamID) (map[AppID]Activ
 	return sessionsMap, nil
 }
 
+// AddActiveSession
+//
 // Adds an active session to the database
 func (d *DB) AddActiveSession(ctx context.Context, session ActiveSession) error {
 	return d.AddActiveSessions(ctx, []ActiveSession{session})
 }
 
+// AddActiveSessions
+//
 // Adds multiple active sessions to database
 func (d *DB) AddActiveSessions(ctx context.Context, sessions []ActiveSession) error {
 	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO active_sessions(steamid, utcstart, playtime_forever, appid) VALUES($1, $2, $3, $4)")
@@ -235,6 +255,8 @@ func (d *DB) AddActiveSessions(ctx context.Context, sessions []ActiveSession) er
 	return nil
 }
 
+// RemoveActiveSession
+//
 // Removes an active session from the database
 // This should only be used to cancel certain
 // sessions
@@ -265,6 +287,8 @@ func (d *DB) RemoveActiveSession(ctx context.Context, steamid SteamID, appid App
 	return nil
 }
 
+// RemoveActiveSessions
+//
 // Removes all active sessions for a steamid
 // This should be preferred since we only remove
 // active sessions when the user is no longer active
@@ -301,9 +325,137 @@ type Session struct {
 	AppID           AppID
 }
 
-// Returns all concluded sessions for a steamid
-func (d *DB) GetSessions(ctx context.Context, id SteamID) ([]Session, error) {
-	rows, err := d.db.QueryContext(ctx, "SELECT steamid, utcstart, utcend, playtime_forever, appid FROM sessions WHERE steamid = $1 ORDER BY utcstart ASC", id)
+// SessionSortBy is a whitelisted set of columns sessions can be sorted by.
+type SessionSortBy string
+
+const (
+	SortByAppID           SessionSortBy = "appid"
+	SortByUTCStart        SessionSortBy = "utcstart"
+	SortByUTCEnd          SessionSortBy = "utcend"
+	SortByPlaytimeForever SessionSortBy = "playtime_forever"
+)
+
+// SortDir is either ascending or descending.
+type SortDir string
+
+const (
+	SortDirAsc  SortDir = "ASC"
+	SortDirDesc SortDir = "DESC"
+)
+
+// SessionFilter holds optional filter conditions for session queries.
+type SessionFilter struct {
+	AppID              *AppID
+	UTCStartFrom       *time.Time
+	UTCStartTo         *time.Time
+	UTCEndFrom         *time.Time
+	UTCEndTo           *time.Time
+	PlaytimeForeverMin *uint32
+	PlaytimeForeverMax *uint32
+}
+
+// SessionQuery bundles pagination, sort, and filter options for GetSessions /
+// GetSessionCount.
+type SessionQuery struct {
+	Page     int32
+	PageSize int32
+	SortBy   SessionSortBy
+	SortDir  SortDir
+	Filter   SessionFilter
+}
+
+// sessionWhereArgs builds the WHERE clause (excluding the fixed steamid=$1
+// condition) and the corresponding args slice. argStart is the next $N index.
+// Returns (clause, args, nextArgIdx).
+func sessionWhereArgs(f SessionFilter, argStart int) (string, []interface{}, int) {
+	var conds []string
+	var args []interface{}
+	i := argStart
+
+	if f.AppID != nil {
+		conds = append(conds, fmt.Sprintf("appid = $%d", i))
+		args = append(args, *f.AppID)
+		i++
+	}
+	if f.UTCStartFrom != nil {
+		conds = append(conds, fmt.Sprintf("utcstart >= $%d", i))
+		args = append(args, *f.UTCStartFrom)
+		i++
+	}
+	if f.UTCStartTo != nil {
+		conds = append(conds, fmt.Sprintf("utcstart <= $%d", i))
+		args = append(args, *f.UTCStartTo)
+		i++
+	}
+	if f.UTCEndFrom != nil {
+		conds = append(conds, fmt.Sprintf("utcend >= $%d", i))
+		args = append(args, *f.UTCEndFrom)
+		i++
+	}
+	if f.UTCEndTo != nil {
+		conds = append(conds, fmt.Sprintf("utcend <= $%d", i))
+		args = append(args, *f.UTCEndTo)
+		i++
+	}
+	if f.PlaytimeForeverMin != nil {
+		conds = append(conds, fmt.Sprintf("playtime_forever >= $%d", i))
+		args = append(args, *f.PlaytimeForeverMin)
+		i++
+	}
+	if f.PlaytimeForeverMax != nil {
+		conds = append(conds, fmt.Sprintf("playtime_forever <= $%d", i))
+		args = append(args, *f.PlaytimeForeverMax)
+		i++
+	}
+
+	clause := ""
+	if len(conds) > 0 {
+		clause = " AND " + strings.Join(conds, " AND ")
+	}
+	return clause, args, i
+}
+
+// safeSessionSortCol maps a SessionSortBy to its SQL column name.
+// Defaults to "utcstart" for unknown values.
+func safeSessionSortCol(s SessionSortBy) string {
+	switch s {
+	case SortByAppID:
+		return "appid"
+	case SortByUTCEnd:
+		return "utcend"
+	case SortByPlaytimeForever:
+		return "playtime_forever"
+	default:
+		return "utcstart"
+	}
+}
+
+// safeSortDir maps a SortDir to "ASC" or "DESC", defaulting to "ASC".
+func safeSortDir(d SortDir) string {
+	if d == SortDirDesc {
+		return "DESC"
+	}
+	return "ASC"
+}
+
+// GetSessions returns paginated, optionally filtered and sorted concluded
+// sessions for a steamid.
+func (d *DB) GetSessions(ctx context.Context, id SteamID, q SessionQuery) ([]Session, error) {
+	filterClause, filterArgs, nextIdx := sessionWhereArgs(q.Filter, 2)
+
+	query := fmt.Sprintf(
+		"SELECT steamid, utcstart, utcend, playtime_forever, appid FROM sessions WHERE steamid = $1%s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+		filterClause,
+		safeSessionSortCol(q.SortBy),
+		safeSortDir(q.SortDir),
+		nextIdx, nextIdx+1,
+	)
+
+	offset := q.PageSize * q.Page
+	args := append([]interface{}{id}, filterArgs...)
+	args = append(args, q.PageSize, offset)
+
+	rows, err := d.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -326,6 +478,24 @@ func (d *DB) GetSessions(ctx context.Context, id SteamID) ([]Session, error) {
 	return sessions, nil
 }
 
+// GetSessionCount returns the number of concluded sessions for a steamid,
+// respecting the same filter as GetSessions.
+func (d *DB) GetSessionCount(ctx context.Context, id SteamID, f SessionFilter) (int64, error) {
+	filterClause, filterArgs, _ := sessionWhereArgs(f, 2)
+
+	query := fmt.Sprintf("SELECT COUNT(*) FROM sessions WHERE steamid = $1%s", filterClause)
+	args := append([]interface{}{id}, filterArgs...)
+
+	var count int64
+	err := d.db.QueryRowContext(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// AddSession
+//
 // Add a concluded session to the database
 func (d *DB) AddSession(ctx context.Context, session Session) error {
 	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO sessions(steamid, utcstart, utcend, playtime_forever, appid) VALUES($1, $2, $3, $4, $5)")
@@ -351,19 +521,23 @@ type GameCache struct {
 	Recommendations uint32
 }
 
-// GetGameCache returns game information from cache
+// GetGameCache
+//
+// returns game information from cache
 func (d *DB) GetGameCache(ctx context.Context, appid AppID) (*GameCache, error) {
 	var game GameCache
-	err := d.db.QueryRowContext(ctx, "SELECT appid, name, publisher, developer, header_image, recommendations FROM game_cache WHERE appid = $1", appid).Scan(&game.AppID, &game.Name, &game.Publisher, &game.Developer, &game.HeaderImage, &game.Recommendations)
+	err := d.db.QueryRowContext(ctx, "SELECT appid, name, publisher, developer, header_image, recommendations FROM games WHERE appid = $1", appid).Scan(&game.AppID, &game.Name, &game.Publisher, &game.Developer, &game.HeaderImage, &game.Recommendations)
 	if err != nil {
 		return nil, err
 	}
 	return &game, nil
 }
 
-// AddGameCache adds game information to cache
+// AddGameCache
+//
+// Adds game information to cache
 func (d *DB) AddGameCache(ctx context.Context, game GameCache) error {
-	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO game_cache(appid, name, publisher, developer, header_image, recommendations) VALUES($1, $2, $3, $4, $5, $6)")
+	stmt, err := d.db.PrepareContext(ctx, "INSERT INTO games(appid, name, publisher, developer, header_image, recommendations) VALUES($1, $2, $3, $4, $5, $6)")
 	if err != nil {
 		return wrapErr(err)
 	}
