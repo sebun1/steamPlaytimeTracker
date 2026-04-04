@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sebun1/steamPlaytimeTracker/log"
 	"github.com/sebun1/steamPlaytimeTracker/sptt"
 )
 
@@ -50,7 +51,25 @@ func (a *SpttAPI) Run() {
 		users.GET("/stats", a.getUserStats)
 	}
 
-	r.Run(a.addr)
+	srv := &http.Server{
+		Addr:    a.addr,
+		Handler: r,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Errorf("API server error: %v", err)
+		}
+	}()
+
+	<-a.ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Errorf("API server shutdown error: %v", err)
+	}
 }
 
 // parseSteamID extracts and validates the :id path param as a SteamID.
