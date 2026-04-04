@@ -95,7 +95,11 @@ func main() {
 
 	notifChan := make(chan sptt.Notif, 10)
 
-	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg)
+	port := "8080"
+	if v, ok := env["API_PORT"]; ok && v != "" {
+		port = v
+	}
+	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg, ":"+port)
 
 	// Run routines for stApi and monitor
 	wg.Add(2)

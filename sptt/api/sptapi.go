@@ -21,14 +21,16 @@ type SpttAPI struct {
 	db        *sptt.DB
 	notifChan chan sptt.Notif
 	wg        *sync.WaitGroup
+	addr      string
 }
 
-func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup) *SpttAPI {
+func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup, addr string) *SpttAPI {
 	return &SpttAPI{
 		ctx:       ctx,
 		db:        db,
 		notifChan: notifChan,
 		wg:        wg,
+		addr:      addr,
 	}
 }
 
@@ -48,7 +50,7 @@ func (a *SpttAPI) Run() {
 		users.GET("/stats", a.getUserStats)
 	}
 
-	r.Run()
+	r.Run(a.addr)
 }
 
 // parseSteamID extracts and validates the :id path param as a SteamID.
