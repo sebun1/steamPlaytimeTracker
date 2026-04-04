@@ -104,9 +104,10 @@ func main() {
 	// Run routines for stApi and monitor
 	wg.Add(2)
 	go monitor(ctx, db, stApi, notifChan, &wg)
-	go apiServer.Run()
-
 	log.Info("Steam Playtime Tracker started.")
+
+	go apiServer.Run()
+	log.Info("API server started on port ", port)
 
 	<-cancelChan
 	cancel()
