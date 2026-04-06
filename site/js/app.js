@@ -144,10 +144,10 @@ async function fetchSteamProfile(steamId) {
   const url  = `${STEAM_COMMUNITY_PROXY}/profiles/${steamId}/?xml=1`;
 
   const res  = await fetch(url, { signal: AbortSignal.timeout(8_000) });
-  const json = await res.json();
 
   const parser = new DOMParser();
-  const doc    = parser.parseFromString(json.contents ?? '', 'text/xml');
+  const text   = await res.text();
+  const doc    = parser.parseFromString(text ?? '', 'text/xml');
 
   const txt = (tag) => doc.querySelector(tag)?.textContent?.trim() ?? '';
 
