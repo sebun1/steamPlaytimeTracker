@@ -255,7 +255,7 @@ a:hover { text-decoration: underline; }
   grid-template-columns: 300px 1fr;
   gap: 16px;
   margin-bottom: 16px;
-  align-items: start;
+  align-items: end;
 }
 
 /* ─────────────────────────────────────────
