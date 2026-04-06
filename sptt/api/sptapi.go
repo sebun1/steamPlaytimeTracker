@@ -18,20 +18,39 @@ const (
 )
 
 type SpttAPI struct {
-	ctx       context.Context
-	db        *sptt.DB
-	notifChan chan sptt.Notif
-	wg        *sync.WaitGroup
-	addr      string
+	ctx        context.Context
+	db         *sptt.DB
+	notifChan  chan sptt.Notif
+	wg         *sync.WaitGroup
+	addr       string
+	corsOrigin string
 }
 
-func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup, addr string) *SpttAPI {
+func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup, addr string, corsOrigin string) *SpttAPI {
 	return &SpttAPI{
-		ctx:       ctx,
-		db:        db,
-		notifChan: notifChan,
-		wg:        wg,
-		addr:      addr,
+		ctx:        ctx,
+		db:         db,
+		notifChan:  notifChan,
+		wg:         wg,
+		addr:       addr,
+		corsOrigin: corsOrigin,
+	}
+}
+
+// corsMiddleware adds CORS headers using the configured allowed origin.
+// Preflight OPTIONS requests are answered immediately with 204 No Content
+// before they reach any route handler.
+func corsMiddleware(origin string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", origin)
+		c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
 	}
 }
 
@@ -39,6 +58,7 @@ func (a *SpttAPI) Run() {
 	defer a.wg.Done()
 
 	r := gin.Default()
+	r.Use(corsMiddleware(a.corsOrigin))
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})

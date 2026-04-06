@@ -99,7 +99,13 @@ func main() {
 	if v, ok := env["API_PORT"]; ok && v != "" {
 		port = v
 	}
-	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg, ":"+port)
+
+	corsOrigin := "*"
+	if v, ok := env["CORS_ORIGIN"]; ok && v != "" {
+		corsOrigin = v
+	}
+
+	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg, ":"+port, corsOrigin)
 
 	// Run routines for stApi and monitor
 	wg.Add(2)
