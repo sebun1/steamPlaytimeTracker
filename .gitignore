@@ -7,10 +7,13 @@ dist/
 site-dist/
 
 # Executables
-steamPlaytimeTracker*
+/steamPlaytimeTracker*
+/createtoken*
 /sptt.*
 /spt
 /spt.*
+
+*.exe
 
 # macOS
 .DS_Store
