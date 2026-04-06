@@ -184,7 +184,7 @@ func (s *SteamAPI) GetPlayerSummaries(ctx context.Context, steamids []SteamID) (
 	allSummaries := resp.Response.Players
 
 	if len(allSummaries) != len(steamids) {
-		return nil, fmt.Errorf("steam api returned %d summaries, expected %d", len(allSummaries), len(steamids))
+		log.Warnf("GetPlayerSummaries expected %d, got %d results. Some steamids might be invalid. Continuing with valid summaries", len(steamids), len(allSummaries))
 	}
 
 	summaries = make(map[SteamID]PlayerSummary)
