@@ -136,7 +136,7 @@
     <div class="config-panel" id="config-panel">
       <h3>Credentials</h3>
       <div class="field"><label>Name</label><input type="text" id="cfg-name" placeholder="admin token name" autocomplete="off"></div>
-      <div class="field"><label>Token</label><input type="text" id="cfg-token" placeholder="128-char hex token" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label>Token</label><input type="password" id="cfg-token" placeholder="128-char hex token" autocomplete="off" spellcheck="false"></div>
       <div style="display:flex;gap:8px;margin-top:4px">
         <button class="btn btn-primary" id="cfg-save">Save &amp; Test</button>
       </div>
@@ -235,8 +235,7 @@
 <script>
   'use strict';
 
-  const API = 'http://localhost:8083';
-  // const API = 'https://api.takina.io/sptt/v1';
+  const API = 'https://api.takina.io/sptt/v1';
 
   // ── Credentials ──────────────────────────────────────────────────────────────
   function getCreds() {
