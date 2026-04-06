@@ -3,13 +3,11 @@
 // ─────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────
-const API_BASE        = 'https://api.takina.io/sptt/v1';
-const STEAM_CDN       = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
-const STEAM_STORE_API = 'https://api.takina.io/proxy/steamstore/api/appdetails';
-const STEAM_STORE_URL = 'https://store.steampowered.com/app';
-
-// allorigins proxies the Steam Community XML through a CORS-safe endpoint.
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+const API_BASE              = 'https://api.takina.io/sptt/v1';
+const STEAM_CDN             = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
+const STEAM_STORE_API       = 'https://api.takina.io/proxy/steamstore/api/appdetails';
+const STEAM_COMMUNITY_PROXY = 'https://api.takina.io/proxy/steamcommunity'
+const STEAM_STORE_URL       = 'https://store.steampowered.com/app';
 
 // ─────────────────────────────────────────
 // State
@@ -140,15 +138,12 @@ async function apiSessions(steamId) {
 // ─────────────────────────────────────────
 
 /**
- * Fetch a Steam profile via the Community XML endpoint.
- * steamcommunity.com does not send CORS headers so we route through
- * allorigins.win which returns { contents: "<xml>..." }.
+ * Fetch a Steam profile via the Community XML endpoint through proxy.
  */
 async function fetchSteamProfile(steamId) {
-  const xmlUrl  = `https://steamcommunity.com/profiles/${steamId}/?xml=1`;
-  const proxy   = `${CORS_PROXY}${encodeURIComponent(xmlUrl)}`;
+  const url  = `${STEAM_COMMUNITY_PROXY}/profiles/${steamId}/?xml=1`;
 
-  const res  = await fetch(proxy, { signal: AbortSignal.timeout(8_000) });
+  const res  = await fetch(url, { signal: AbortSignal.timeout(8_000) });
   const json = await res.json();
 
   const parser = new DOMParser();
