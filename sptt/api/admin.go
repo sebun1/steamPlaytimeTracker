@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	ClearanceAdminBase = 500
+	ClearanceNone              = 0
+	ClearanceAdminBase         = 500
+	ClearanceAdminModifyDelete = 600
 )
 
 // adminResp is the minimal response envelope for all admin endpoints.
@@ -92,7 +94,7 @@ func reloadActiveUsers(a *SpttAPI) error {
 
 // GET /admin/test
 func (a *SpttAPI) handleAdminTest(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceNone) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "reason": "", "clearance": clearanceFromCtx(c)})
@@ -100,7 +102,7 @@ func (a *SpttAPI) handleAdminTest(c *gin.Context) {
 
 // POST /admin/reload
 func (a *SpttAPI) handleAdminReload(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
 	if err := reloadActiveUsers(a); err != nil {
@@ -211,7 +213,7 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 
 // POST /admin/users/remove
 func (a *SpttAPI) handleAdminRemoveUser(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
 
@@ -244,7 +246,7 @@ func (a *SpttAPI) handleAdminRemoveUser(c *gin.Context) {
 
 // POST /admin/users/modify
 func (a *SpttAPI) handleAdminModifyUser(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
 
@@ -288,7 +290,7 @@ func (a *SpttAPI) handleAdminModifyUser(c *gin.Context) {
 
 // GET /admin/tokens
 func (a *SpttAPI) handleAdminListTokens(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceNone) {
 		return
 	}
 
@@ -318,7 +320,7 @@ func (a *SpttAPI) handleAdminListTokens(c *gin.Context) {
 
 // POST /admin/tokens/create
 func (a *SpttAPI) handleAdminCreateToken(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
 
@@ -357,7 +359,7 @@ func (a *SpttAPI) handleAdminCreateToken(c *gin.Context) {
 
 // POST /admin/tokens/delete
 func (a *SpttAPI) handleAdminDeleteToken(c *gin.Context) {
-	if !checkClearance(c, ClearanceAdminBase) {
+	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
 
