@@ -257,7 +257,8 @@ function renderProfile() {
   }[p.onlineState] ?? 'status-offline';
 
   const statusLabel = p.onlineState === 'in-game'
-    ? (p.stateMessage || 'In-Game')
+    ? 'In-Game'
+    // ? (p.stateMessage || 'In-Game')
     : (p.onlineState === 'online' ? 'Online' : 'Offline');
 
   const metaRows = [
