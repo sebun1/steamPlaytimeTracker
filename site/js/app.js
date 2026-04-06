@@ -73,9 +73,14 @@ function fmtPlaytime(minutes) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-/** Convert a datetime-local string to an RFC3339 UTC string. */
-function localToRFC3339(dtLocalStr) {
-  return dtLocalStr ? new Date(dtLocalStr).toISOString() : null;
+/**
+ * Convert a date string (YYYY-MM-DD) to an RFC3339 UTC string.
+ * boundary='start' clamps to 00:00:00 local, 'end' clamps to 23:59:59 local.
+ */
+function localToRFC3339(dateStr, boundary = 'start') {
+  if (!dateStr) return null;
+  const time = boundary === 'end' ? 'T23:59:59' : 'T00:00:00';
+  return new Date(dateStr + time).toISOString();
 }
 
 /** Copy an App ID to clipboard and briefly flash the button green. */
@@ -578,10 +583,10 @@ function setTableLoading(on) {
 function readFilters() {
   return {
     appId:       document.getElementById('f-appid').value.trim(),
-    startFrom:   localToRFC3339(document.getElementById('f-start-from').value),
-    startTo:     localToRFC3339(document.getElementById('f-start-to').value),
-    endFrom:     localToRFC3339(document.getElementById('f-end-from').value),
-    endTo:       localToRFC3339(document.getElementById('f-end-to').value),
+    startFrom:   localToRFC3339(document.getElementById('f-start-from').value, 'start'),
+    startTo:     localToRFC3339(document.getElementById('f-start-to').value,   'end'),
+    endFrom:     localToRFC3339(document.getElementById('f-end-from').value,   'start'),
+    endTo:       localToRFC3339(document.getElementById('f-end-to').value,     'end'),
     playtimeMin: document.getElementById('f-pt-min').value,
     playtimeMax: document.getElementById('f-pt-max').value,
   };

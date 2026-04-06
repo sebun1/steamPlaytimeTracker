@@ -157,7 +157,7 @@ a:hover { text-decoration: underline; }
 }
 .filter-input:focus { border-color: var(--accent); }
 .filter-input::placeholder { color: var(--txt-muted); }
-.filter-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+.filter-input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(.5) sepia(1) hue-rotate(180deg);
   cursor: pointer;
 }
