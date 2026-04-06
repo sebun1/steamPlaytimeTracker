@@ -391,12 +391,12 @@ function renderSessions() {
         </div>
       </td>
       <td class="cell-appid">
-        <span class="appid-val">${s.app_id}</span>
         <button class="copy-btn" title="Copy App ID" onclick="copyAppId(this, ${s.app_id})">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
           </svg>
         </button>
+        <span class="appid-val">${s.app_id}</span>
       </td>
       <td class="cell-time">${fmtLocalTime(s.utc_start)}</td>
       <td class="cell-time">${fmtLocalTime(s.utc_end)}</td>
