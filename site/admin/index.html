@@ -31,7 +31,7 @@
       --font:     'Inter',system-ui,sans-serif;
     }
     html{color-scheme:dark}
-    body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;min-height:100vh}
+    body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:16px;min-height:100vh}
     a{color:var(--accent)}
     /* ── Header ── */
     .header{
@@ -41,9 +41,9 @@
       display:flex;align-items:center;justify-content:space-between;
       padding:0 20px;height:48px;gap:16px;
     }
-    .header-left{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--accent)}
+    .header-left{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--accent)}
     .header-right{display:flex;align-items:center;gap:10px}
-    .auth-status{font-size:12px}
+    .auth-status{font-size:15px}
     .auth-ok  {color:var(--green)}
     .auth-fail{color:var(--red)}
     /* ── Cog button & config panel ── */
@@ -56,14 +56,14 @@
       box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:200;
     }
     .config-panel.open{display:block}
-    .config-panel h3{font-size:13px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+    .config-panel h3{font-size:16px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
     .field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-    .field label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
+    .field label{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
     .field input{padding:7px 10px;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);color:var(--txt);font:13px/1 var(--font);outline:none}
     .field input:focus{border-color:var(--accent)}
     /* ── Tabs ── */
     .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px}
-    .tab{padding:10px 16px;cursor:pointer;font-size:13px;color:var(--txt2);border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
+    .tab{padding:10px 16px;cursor:pointer;font-size:16px;color:var(--txt2);border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
     .tab:hover{color:var(--txt)}
     .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
     /* ── Main ── */
@@ -72,30 +72,30 @@
     /* ── Card ── */
     .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:16px}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
-    .card-title{font-size:13px;font-weight:600}
-    .card-meta{font-size:11px;color:var(--txt3)}
+    .card-title{font-size:16px;font-weight:600}
+    .card-meta{font-size:14px;color:var(--txt3)}
     /* ── Buttons ── */
     .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:none;border-radius:var(--r);font:500 12px/1 var(--font);cursor:pointer;transition:background .15s}
     .btn-primary{background:var(--accent);color:#1b2838}.btn-primary:hover{background:#4fa3d1}
     .btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--bg-hover);color:var(--txt)}
     .btn-danger{background:rgba(192,57,43,.2);color:#e74c3c;border:1px solid rgba(192,57,43,.3)}.btn-danger:hover{background:rgba(192,57,43,.35)}
-    .btn-sm{padding:4px 10px;font-size:11px}
+    .btn-sm{padding:4px 10px;font-size:14px}
     /* ── Table ── */
     .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r)}
-    table{width:100%;border-collapse:collapse;font-size:12px}
-    thead th{padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);background:var(--bg-el);border-bottom:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse;font-size:16px}
+    thead th{padding:8px 12px;text-align:left;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);background:var(--bg-el);border-bottom:1px solid var(--border)}
     tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
     tbody tr:last-child td{border-bottom:none}
     tbody tr:hover{background:var(--bg-hover)}
-    .badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600}
+    .badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:13px;font-weight:600}
     .badge-on {background:rgba(91,168,94,.2);color:var(--green)}
     .badge-off{background:rgba(143,152,160,.15);color:var(--txt2)}
     /* ── Inline form ── */
     .inline-form{background:var(--bg-el);border:1px solid var(--border2);border-radius:var(--r);padding:14px;margin-bottom:12px}
-    .inline-form h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2);margin-bottom:10px}
+    .inline-form h4{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2);margin-bottom:10px}
     .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
     .form-row{display:flex;flex-direction:column;gap:4px}
-    .form-row label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
+    .form-row label{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
     .form-row input[type=text],.form-row input[type=number]{padding:6px 9px;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);color:var(--txt);font:13px/1 var(--font);outline:none;width:100%}
     .form-row input:focus{border-color:var(--accent)}
     .checkbox-row{display:flex;align-items:center;gap:7px;padding-top:6px}
@@ -111,12 +111,12 @@
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;align-items:center;justify-content:center}
     .modal-overlay.open{display:flex}
     .modal{background:var(--bg-card);border:1px solid var(--border2);border-radius:var(--r);padding:24px;max-width:540px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.7)}
-    .modal h3{margin-bottom:8px;font-size:15px}
-    .modal .warn{font-size:12px;color:var(--yellow);margin-bottom:14px}
-    .token-box{font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);padding:10px;margin-bottom:12px;line-height:1.6;color:var(--accent)}
+    .modal h3{margin-bottom:8px;font-size:18px}
+    .modal .warn{font-size:15px;color:var(--yellow);margin-bottom:14px}
+    .token-box{font-family:monospace;font-size:14px;word-break:break-all;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);padding:10px;margin-bottom:12px;line-height:1.6;color:var(--accent)}
     .modal-actions{display:flex;gap:8px;justify-content:flex-end}
     /* ── Error inline ── */
-    .err{color:var(--red);font-size:11px;margin-top:6px}
+    .err{color:var(--red);font-size:14px;margin-top:6px}
     /* ── Spinner ── */
     .spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin:40px auto}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -375,7 +375,7 @@
     }
     const rows = users.map(u => `
     <tr>
-      <td style="font-family:monospace;font-size:11px">${u.steamid}</td>
+      <td style="font-family:monospace;font-size:14px">${u.steamid}</td>
       <td>${esc(u.username)}</td>
       <td><span class="badge ${u.active ? 'badge-on' : 'badge-off'}">${u.active ? 'Yes' : 'No'}</span></td>
       <td><span class="badge ${u.public ? 'badge-on' : 'badge-off'}">${u.public ? 'Yes' : 'No'}</span></td>
@@ -518,7 +518,7 @@
     <tr>
       <td style="font-weight:600">${esc(t.name)}</td>
       <td>${t.clearance}</td>
-      <td style="font-size:11px;color:var(--txt2)">${new Date(t.create_date).toLocaleString()}</td>
+      <td style="font-size:14px;color:var(--txt2)">${new Date(t.create_date).toLocaleString()}</td>
       <td>
         <button class="btn btn-danger btn-sm" onclick="deleteToken('${esc(t.name)}')">Delete</button>
       </td>
