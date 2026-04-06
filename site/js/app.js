@@ -563,6 +563,7 @@ async function loadSessions() {
   }
 
   setTableLoading(false);
+  document.getElementById('page-size-select').value = String(state.pageSize);
   renderSessions();
   renderPagination();
 }
