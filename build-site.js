@@ -1,5 +1,5 @@
 ﻿import { createHash } from 'crypto';
-import { readFileSync, writeFileSync, copyFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, rmSync, cpSync } from 'fs';
 
 const SRC = 'site';
 const DIST = 'site-dist';
@@ -9,17 +9,19 @@ function hashFile(path) {
     return createHash('md5').update(content).digest('hex').slice(0, 8);
 }
 
-mkdirSync(DIST, { recursive: true });
-mkdirSync(`${DIST}/js`, { recursive: true });
-mkdirSync(`${DIST}/css`, { recursive: true });
+rmSync(DIST, { recursive: true, force: true });
+cpSync(SRC, DIST, { recursive: true });
 
-const jsHash = hashFile(`${SRC}/js/app.js`);
-const cssHash = hashFile(`${SRC}/css/style.css`);
+const jsHash = hashFile(`${DIST}/js/app.js`);
+const cssHash = hashFile(`${DIST}/css/style.css`);
 
-copyFileSync(`${SRC}/js/app.js`, `${DIST}/js/app.${jsHash}.js`);
-copyFileSync(`${SRC}/css/style.css`, `${DIST}/css/style.${cssHash}.css`);
+cpSync(`${DIST}/js/app.js`, `${DIST}/js/app.${jsHash}.js`);
+cpSync(`${DIST}/css/style.css`, `${DIST}/css/style.${cssHash}.css`);
 
-let html = readFileSync(`${SRC}/index.html`, 'utf8');
+rmSync(`${DIST}/js/app.js`);
+rmSync(`${DIST}/css/style.css`);
+
+let html = readFileSync(`${DIST}/index.html`, 'utf8');
 html = html.replace('js/app.js', `js/app.${jsHash}.js`);
 html = html.replace('css/style.css', `css/style.${cssHash}.css`);
 writeFileSync(`${DIST}/index.html`, html);
