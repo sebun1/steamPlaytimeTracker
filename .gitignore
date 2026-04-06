@@ -3,6 +3,8 @@ test/
 .notes.md
 Session.vim
 .vscode/
+dist/
+site-dist/
 
 # Executables
 steamPlaytimeTracker*
