@@ -382,12 +382,12 @@ function renderSessions() {
   tbody.innerHTML = state.sessions.map((s, i) => `
     <tr>
       <td>
-        <div class="game-cell">
+        <div id="gname-${i}" class="game-cell">
           <img class="game-thumb" src="${thumbUrl(s.app_id)}" alt=""
                onerror="this.style.visibility='hidden'">
           <span class="game-name">
             <a href="${STEAM_STORE_URL}/${s.app_id}" target="_blank" rel="noreferrer"
-               id="gname-${i}" class="game-name-ph">App ${s.app_id}</a>
+               class="game-name-ph">App ${s.app_id}</a>
           </span>
         </div>
       </td>
@@ -411,11 +411,16 @@ function renderSessions() {
   // Resolve game names and update cells in place
   state.sessions.forEach((s, i) => {
     getGameDetails(s.app_id).then(g => {
-      const link = document.getElementById(`gname-${i}`);
-      if (!link) return;
+      const gameCell = document.getElementById(`gname-${i}`);
+      const gameNamePh = gameCell?.querySelector('a.game-name-ph');
+      const gameThumb = gameCell?.querySelector('img.game-thumb');
+      if (!gameCell) return;
       if (g?.name) {
-        link.textContent = g.name;
-        link.classList.remove('game-name-ph');
+        gameNamePh.textContent = g.name;
+        gameNamePh.classList.remove('game-name-ph');
+      }
+      if (g?.headerImage)  {
+        gameThumb.src = g.headerImage;
       }
     });
   });
