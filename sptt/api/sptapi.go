@@ -43,8 +43,8 @@ func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg 
 func corsMiddleware(origin string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, X-Admin-Name, X-Admin-Token")
 
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -69,6 +69,20 @@ func (a *SpttAPI) Run() {
 		users.GET("/sessions", a.getSessions)
 		users.GET("/active_sessions", a.getActiveSessions)
 		users.GET("/stats", a.getUserStats)
+	}
+
+	admin := r.Group("/admin")
+	admin.Use(AdminAuthMiddleware(a.db))
+	{
+		admin.GET("/test",               a.handleAdminTest)
+		admin.POST("/reload",            a.handleAdminReload)
+		admin.GET("/users",              a.handleAdminGetUsers)
+		admin.POST("/users/add",         a.handleAdminAddUser)
+		admin.POST("/users/remove",      a.handleAdminRemoveUser)
+		admin.POST("/users/modify",      a.handleAdminModifyUser)
+		admin.GET("/tokens",             a.handleAdminListTokens)
+		admin.POST("/tokens/create",     a.handleAdminCreateToken)
+		admin.POST("/tokens/delete",     a.handleAdminDeleteToken)
 	}
 
 	srv := &http.Server{

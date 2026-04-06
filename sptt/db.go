@@ -3,11 +3,13 @@ package sptt
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/sebun1/steamPlaytimeTracker/log"
 )
@@ -549,4 +551,242 @@ func (d *DB) AddGameCache(ctx context.Context, game GameCache) error {
 	}
 
 	return nil
+}
+
+// --- Users (Admin) ---
+
+type User struct {
+	SteamID    SteamID
+	Username   string
+	Alias      sql.NullString
+	ProfileURL sql.NullString
+	Avatar     sql.NullString
+	Timezone   sql.NullString
+	Active     bool
+	Public     bool
+}
+
+// ErrDuplicateSteamID is returned when inserting a user that already exists.
+var ErrDuplicateSteamID = errors.New("duplicate steamid")
+
+// ErrUserNotFound is returned when a user operation targets a non-existent row.
+var ErrUserNotFound = errors.New("user not found")
+
+// GetUsers returns a paginated list of all users and the total count.
+func (d *DB) GetUsers(ctx context.Context, limit, offset int) ([]User, int64, error) {
+	var total int64
+	if err := d.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := d.db.QueryContext(ctx,
+		"SELECT steamid, username, alias, profileurl, avatar, timezone, active, public FROM users ORDER BY steamid LIMIT $1 OFFSET $2",
+		limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.SteamID, &u.Username, &u.Alias, &u.ProfileURL, &u.Avatar, &u.Timezone, &u.Active, &u.Public); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
+}
+
+// AddUser inserts a new user row.
+func (d *DB) AddUser(ctx context.Context, id SteamID, username string, active, public bool) error {
+	_, err := d.db.ExecContext(ctx,
+		"INSERT INTO users(steamid, username, active, public) VALUES($1, $2, $3, $4)",
+		id, username, active, public)
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return ErrDuplicateSteamID
+		}
+		return wrapErr(err)
+	}
+	return nil
+}
+
+// RemoveUser deletes a user row by steamid.
+func (d *DB) RemoveUser(ctx context.Context, id SteamID) error {
+	res, err := d.db.ExecContext(ctx, "DELETE FROM users WHERE steamid = $1", id)
+	if err != nil {
+		return wrapErr(err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+// ModifyUserParams holds the optional fields for ModifyUser.
+// A nil pointer means "do not update this field".
+type ModifyUserParams struct {
+	Username *string
+	Active   *bool
+	Public   *bool
+}
+
+// ModifyUser updates only the non-nil fields of a user row.
+func (d *DB) ModifyUser(ctx context.Context, id SteamID, p ModifyUserParams) error {
+	var setClauses []string
+	var args []interface{}
+	i := 1
+
+	if p.Username != nil {
+		setClauses = append(setClauses, fmt.Sprintf("username = $%d", i))
+		args = append(args, *p.Username)
+		i++
+	}
+	if p.Active != nil {
+		setClauses = append(setClauses, fmt.Sprintf("active = $%d", i))
+		args = append(args, *p.Active)
+		i++
+	}
+	if p.Public != nil {
+		setClauses = append(setClauses, fmt.Sprintf("public = $%d", i))
+		args = append(args, *p.Public)
+		i++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // nothing to update
+	}
+
+	args = append(args, id)
+	query := fmt.Sprintf("UPDATE users SET %s WHERE steamid = $%d",
+		strings.Join(setClauses, ", "), i)
+
+	res, err := d.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return wrapErr(err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+// GetActiveSteamIDs returns steamids for users where active = true.
+func (d *DB) GetActiveSteamIDs(ctx context.Context) ([]SteamID, error) {
+	rows, err := d.db.QueryContext(ctx, "SELECT steamid FROM users WHERE active = true")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	var ids []SteamID
+	for rows.Next() {
+		var id SteamID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// --- Auth Tokens ---
+
+// ErrDuplicateTokenName is returned when a token with that name already exists.
+var ErrDuplicateTokenName = errors.New("duplicate token name")
+
+// AuthToken is the full row from auth_tokens.
+type AuthToken struct {
+	ID         int
+	Name       string
+	Salt       string
+	Secret     string
+	Clearance  int
+	CreateDate time.Time
+}
+
+// AuthTokenInfo is the safe public projection (no salt/secret).
+type AuthTokenInfo struct {
+	Name       string
+	Clearance  int
+	CreateDate time.Time
+}
+
+// GetAuthToken fetches a single auth_tokens row by name.
+func (d *DB) GetAuthToken(name string) (AuthToken, error) {
+	var t AuthToken
+	err := d.db.QueryRow(
+		"SELECT id, name, salt, secret, clearance, create_date FROM auth_tokens WHERE name = $1", name,
+	).Scan(&t.ID, &t.Name, &t.Salt, &t.Secret, &t.Clearance, &t.CreateDate)
+	return t, err
+}
+
+// ListAuthTokensBelowClearance returns token info for rows with clearance < limit.
+func (d *DB) ListAuthTokensBelowClearance(ctx context.Context, clearanceLimit int) ([]AuthTokenInfo, error) {
+	rows, err := d.db.QueryContext(ctx,
+		"SELECT name, clearance, create_date FROM auth_tokens WHERE clearance < $1 ORDER BY create_date DESC",
+		clearanceLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tokens []AuthTokenInfo
+	for rows.Next() {
+		var t AuthTokenInfo
+		if err := rows.Scan(&t.Name, &t.Clearance, &t.CreateDate); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, rows.Err()
+}
+
+// CreateAuthToken inserts a new auth token row.
+func (d *DB) CreateAuthToken(ctx context.Context, name, salt, secret string, clearance int) error {
+	_, err := d.db.ExecContext(ctx,
+		"INSERT INTO auth_tokens(name, salt, secret, clearance) VALUES($1, $2, $3, $4)",
+		name, salt, secret, clearance)
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return ErrDuplicateTokenName
+		}
+		return wrapErr(err)
+	}
+	return nil
+}
+
+// DeleteAuthToken removes an auth token by name.
+func (d *DB) DeleteAuthToken(ctx context.Context, name string) error {
+	_, err := d.db.ExecContext(ctx, "DELETE FROM auth_tokens WHERE name = $1", name)
+	return wrapErr(err)
+}
+
+// --- Metadata ---
+
+const MetaKeyLastUserReload = "last_user_reload"
+
+// GetMetadata fetches the data value for a metadata key.
+func (d *DB) GetMetadata(ctx context.Context, key string) (string, error) {
+	var data string
+	err := d.db.QueryRowContext(ctx, "SELECT data FROM metadata WHERE key = $1", key).Scan(&data)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return data, err
+}
+
+// SetMetadata upserts a metadata key-value pair.
+func (d *DB) SetMetadata(ctx context.Context, key, data string) error {
+	_, err := d.db.ExecContext(ctx,
+		"INSERT INTO metadata(key, data) VALUES($1, $2) ON CONFLICT (key) DO UPDATE SET data = $2",
+		key, data)
+	return wrapErr(err)
 }

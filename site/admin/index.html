@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPTT Admin</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:       #1b2838;
+  --bg-el:    #2a475e;
+  --bg-card:  #1e3a4f;
+  --bg-input: #142030;
+  --bg-hover: #28526e;
+  --txt:      #c7d5e0;
+  --txt2:     #8f98a0;
+  --txt3:     #4a7090;
+  --accent:   #66c0f4;
+  --green:    #5ba85e;
+  --red:      #c0392b;
+  --yellow:   #e2b96f;
+  --border:   rgba(102,192,244,.12);
+  --border2:  rgba(102,192,244,.22);
+  --r:        6px;
+  --font:     'Inter',system-ui,sans-serif;
+}
+html{color-scheme:dark}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px;min-height:100vh}
+a{color:var(--accent)}
+/* ── Header ── */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(27,40,56,.93);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:48px;gap:16px;
+}
+.header-left{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px}
+.auth-status{font-size:12px}
+.auth-ok  {color:var(--green)}
+.auth-fail{color:var(--red)}
+/* ── Cog button & config panel ── */
+.cog-btn{background:none;border:none;color:var(--txt2);cursor:pointer;padding:4px;line-height:0;border-radius:var(--r);transition:color .15s}
+.cog-btn:hover{color:var(--accent)}
+.config-panel{
+  display:none;position:absolute;top:50px;right:12px;
+  background:var(--bg-card);border:1px solid var(--border2);
+  border-radius:var(--r);padding:16px;width:300px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:200;
+}
+.config-panel.open{display:block}
+.config-panel h3{font-size:13px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.field label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
+.field input{padding:7px 10px;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);color:var(--txt);font:13px/1 var(--font);outline:none}
+.field input:focus{border-color:var(--accent)}
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px}
+.tab{padding:10px 16px;cursor:pointer;font-size:13px;color:var(--txt2);border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* ── Main ── */
+.main{padding:20px;max-width:1100px;margin:0 auto}
+.tab-pane{display:none}.tab-pane.active{display:block}
+/* ── Card ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.card-title{font-size:13px;font-weight:600}
+.card-meta{font-size:11px;color:var(--txt3)}
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:none;border-radius:var(--r);font:500 12px/1 var(--font);cursor:pointer;transition:background .15s}
+.btn-primary{background:var(--accent);color:#1b2838}.btn-primary:hover{background:#4fa3d1}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--bg-hover);color:var(--txt)}
+.btn-danger{background:rgba(192,57,43,.2);color:#e74c3c;border:1px solid rgba(192,57,43,.3)}.btn-danger:hover{background:rgba(192,57,43,.35)}
+.btn-sm{padding:4px 10px;font-size:11px}
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:8px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);background:var(--bg-el);border-bottom:1px solid var(--border)}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg-hover)}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600}
+.badge-on {background:rgba(91,168,94,.2);color:var(--green)}
+.badge-off{background:rgba(143,152,160,.15);color:var(--txt2)}
+/* ── Inline form ── */
+.inline-form{background:var(--bg-el);border:1px solid var(--border2);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.inline-form h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2);margin-bottom:10px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.form-row{display:flex;flex-direction:column;gap:4px}
+.form-row label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3)}
+.form-row input[type=text],.form-row input[type=number]{padding:6px 9px;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);color:var(--txt);font:13px/1 var(--font);outline:none;width:100%}
+.form-row input:focus{border-color:var(--accent)}
+.checkbox-row{display:flex;align-items:center;gap:7px;padding-top:6px}
+.checkbox-row input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.form-actions{display:flex;gap:8px}
+/* ── Pagination ── */
+.pagination{display:flex;align-items:center;gap:4px;margin-top:12px;flex-wrap:wrap}
+.pager{min-width:28px;height:28px;padding:0 6px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--txt2);font:12px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.pager:hover:not(:disabled){background:var(--bg-hover);color:var(--txt);border-color:var(--accent)}
+.pager.active{background:var(--accent);border-color:var(--accent);color:#1b2838;font-weight:600}
+.pager:disabled{opacity:.3;pointer-events:none}
+/* ── Token reveal modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg-card);border:1px solid var(--border2);border-radius:var(--r);padding:24px;max-width:540px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.7)}
+.modal h3{margin-bottom:8px;font-size:15px}
+.modal .warn{font-size:12px;color:var(--yellow);margin-bottom:14px}
+.token-box{font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--r);padding:10px;margin-bottom:12px;line-height:1.6;color:var(--accent)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+/* ── Error inline ── */
+.err{color:var(--red);font-size:11px;margin-top:6px}
+/* ── Spinner ── */
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="header">
+  <div class="header-left">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+    SPTT Admin
+  </div>
+  <div class="header-right" style="position:relative">
+    <span class="auth-status auth-fail" id="auth-status">Not authenticated</span>
+    <button class="cog-btn" id="cog-btn" title="Configure credentials">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <div class="config-panel" id="config-panel">
+      <h3>Credentials</h3>
+      <div class="field"><label>Name</label><input type="text" id="cfg-name" placeholder="admin token name" autocomplete="off"></div>
+      <div class="field"><label>Token</label><input type="text" id="cfg-token" placeholder="128-char hex token" autocomplete="off" spellcheck="false"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-primary" id="cfg-save">Save &amp; Test</button>
+      </div>
+      <div class="err" id="cfg-err" style="display:none"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <div class="tab active" data-tab="users">Users</div>
+  <div class="tab" data-tab="tokens">Auth Tokens</div>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- Users tab -->
+  <div class="tab-pane active" id="pane-users">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Registered Users</div>
+          <div class="card-meta" id="last-reload-label"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="btn-reload">↺ Reload Active Users</button>
+          <button class="btn btn-primary" id="btn-add-user">+ Add User</button>
+        </div>
+      </div>
+
+      <!-- Add/Edit form (hidden by default) -->
+      <div class="inline-form" id="user-form" style="display:none">
+        <h4 id="user-form-title">Add User</h4>
+        <div class="form-grid">
+          <div class="form-row"><label>Steam ID64</label><input type="number" id="uf-steamid" placeholder="76561198..."></div>
+          <div class="form-row"><label>Username</label><input type="text" id="uf-username" placeholder="internal name"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:12px">
+          <label class="checkbox-row"><input type="checkbox" id="uf-active" checked> Active</label>
+          <label class="checkbox-row"><input type="checkbox" id="uf-public" checked> Public</label>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="uf-submit">Save</button>
+          <button class="btn btn-ghost" id="uf-cancel">Cancel</button>
+        </div>
+        <div class="err" id="uf-err" style="display:none"></div>
+      </div>
+
+      <div id="users-content"><div class="spinner"></div></div>
+      <div class="pagination" id="users-pagination"></div>
+    </div>
+  </div>
+
+  <!-- Tokens tab -->
+  <div class="tab-pane" id="pane-tokens">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Auth Tokens</div>
+        <button class="btn btn-primary" id="btn-create-token">+ Create Token</button>
+      </div>
+
+      <!-- Create token form -->
+      <div class="inline-form" id="token-form" style="display:none">
+        <h4>Create Token</h4>
+        <div class="form-grid">
+          <div class="form-row"><label>Name</label><input type="text" id="tf-name" placeholder="e.g. deploy-bot"></div>
+          <div class="form-row"><label>Clearance</label><input type="number" id="tf-clearance" placeholder="e.g. 500" min="1"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="tf-submit">Create</button>
+          <button class="btn btn-ghost" id="tf-cancel">Cancel</button>
+        </div>
+        <div class="err" id="tf-err" style="display:none"></div>
+      </div>
+
+      <div id="tokens-content"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- Token reveal modal -->
+<div class="modal-overlay" id="token-modal">
+  <div class="modal">
+    <h3>Token Created</h3>
+    <p class="warn">⚠ Copy this token now. It will never be shown again.</p>
+    <div class="token-box" id="token-reveal"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="token-copy">Copy</button>
+      <button class="btn btn-primary" id="token-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API = 'https://api.takina.io/sptt/v1';
+
+// ── Credentials ──────────────────────────────────────────────────────────────
+function getCreds() {
+  return {
+    name:  localStorage.getItem('admin_name')  || '',
+    token: localStorage.getItem('admin_token') || '',
+  };
+}
+
+function authHeaders() {
+  const { name, token } = getCreds();
+  return {
+    'Content-Type':  'application/json',
+    'X-Admin-Name':  name,
+    'X-Admin-Token': token,
+  };
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function apiGet(path, params = {}) {
+  const url = new URL(`${API}${path}`);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) url.searchParams.set(k, v);
+  }
+  const res = await fetch(url, { headers: authHeaders() });
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method:  'POST',
+    headers: authHeaders(),
+    body:    JSON.stringify(body),
+  });
+  return res.json();
+}
+
+// ── Auth / Config ─────────────────────────────────────────────────────────────
+const cogBtn      = document.getElementById('cog-btn');
+const configPanel = document.getElementById('config-panel');
+const authStatus  = document.getElementById('auth-status');
+
+cogBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  configPanel.classList.toggle('open');
+  const { name, token } = getCreds();
+  document.getElementById('cfg-name').value  = name;
+  document.getElementById('cfg-token').value = token;
+});
+document.addEventListener('click', () => configPanel.classList.remove('open'));
+configPanel.addEventListener('click', e => e.stopPropagation());
+
+document.getElementById('cfg-save').addEventListener('click', async () => {
+  const name  = document.getElementById('cfg-name').value.trim();
+  const token = document.getElementById('cfg-token').value.trim();
+  const errEl = document.getElementById('cfg-err');
+  errEl.style.display = 'none';
+
+  localStorage.setItem('admin_name',  name);
+  localStorage.setItem('admin_token', token);
+
+  try {
+    const data = await apiGet('/admin/test');
+    if (data.ok) {
+      setAuthStatus(true, data.clearance);
+      configPanel.classList.remove('open');
+      refreshCurrentTab();
+    } else {
+      errEl.textContent = data.reason || 'Authentication failed';
+      errEl.style.display = 'block';
+      setAuthStatus(false);
+    }
+  } catch {
+    errEl.textContent = 'Network error';
+    errEl.style.display = 'block';
+  }
+});
+
+function setAuthStatus(ok, clearance) {
+  authStatus.textContent = ok
+    ? `Authenticated (clearance: ${clearance})`
+    : 'Not authenticated';
+  authStatus.className = 'auth-status ' + (ok ? 'auth-ok' : 'auth-fail');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    refreshCurrentTab();
+  });
+});
+
+function refreshCurrentTab() {
+  const active = document.querySelector('.tab.active')?.dataset.tab;
+  if (active === 'users')  loadUsers();
+  if (active === 'tokens') loadTokens();
+}
+
+// ── Users Tab ────────────────────────────────────────────────────────────────
+let usersState = { limit: 50, offset: 0, total: 0 };
+let userEditId = null; // null = add mode, steamid = edit mode
+
+async function loadUsers() {
+  document.getElementById('users-content').innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await apiGet('/admin/users', { limit: usersState.limit, offset: usersState.offset });
+    if (!data.ok) {
+      document.getElementById('users-content').innerHTML = `<p class="err" style="padding:12px">${data.reason}</p>`;
+      return;
+    }
+    usersState.total = data.total;
+
+    const lastReload = data.last_reload
+      ? `Last reload: ${new Date(data.last_reload).toLocaleString()}`
+      : 'Never reloaded';
+    document.getElementById('last-reload-label').textContent = lastReload;
+
+    renderUsersTable(data.users || []);
+    renderUsersPagination();
+  } catch {
+    document.getElementById('users-content').innerHTML = `<p class="err" style="padding:12px">Network error</p>`;
+  }
+}
+
+function renderUsersTable(users) {
+  if (!users.length) {
+    document.getElementById('users-content').innerHTML = '<p style="padding:16px;color:var(--txt2)">No users found.</p>';
+    return;
+  }
+  const rows = users.map(u => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px">${u.steamid}</td>
+      <td>${esc(u.username)}</td>
+      <td>${esc(u.alias || '—')}</td>
+      <td><span class="badge ${u.active ? 'badge-on' : 'badge-off'}">${u.active ? 'Yes' : 'No'}</span></td>
+      <td><span class="badge ${u.public ? 'badge-on' : 'badge-off'}">${u.public ? 'Yes' : 'No'}</span></td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.steamid},'${esc(u.username)}',${u.active},${u.public})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="removeUser(${u.steamid})">Delete</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('users-content').innerHTML = `
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Steam ID</th><th>Username</th><th>Alias</th>
+          <th>Active</th><th>Public</th><th>Actions</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderUsersPagination() {
+  const { limit, offset, total } = usersState;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const currentPage = Math.floor(offset / limit);
+  const el = document.getElementById('users-pagination');
+
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="pager" ${currentPage === 0 ? 'disabled' : ''} onclick="usersGoPage(${currentPage-1})">‹</button>`;
+  for (let i = 0; i < totalPages; i++) {
+    html += `<button class="pager ${i === currentPage ? 'active' : ''}" onclick="usersGoPage(${i})">${i+1}</button>`;
+  }
+  html += `<button class="pager" ${currentPage >= totalPages-1 ? 'disabled' : ''} onclick="usersGoPage(${currentPage+1})">›</button>`;
+  el.innerHTML = html;
+}
+
+function usersGoPage(p) {
+  usersState.offset = p * usersState.limit;
+  loadUsers();
+}
+
+// Reload active users
+document.getElementById('btn-reload').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-reload');
+  btn.disabled = true;
+  const data = await apiPost('/admin/reload', {});
+  btn.disabled = false;
+  if (data.ok) loadUsers();
+  else alert(data.reason);
+});
+
+// Add user
+document.getElementById('btn-add-user').addEventListener('click', () => openAddUser());
+
+function openAddUser() {
+  userEditId = null;
+  document.getElementById('user-form-title').textContent = 'Add User';
+  document.getElementById('uf-steamid').value   = '';
+  document.getElementById('uf-username').value  = '';
+  document.getElementById('uf-active').checked  = true;
+  document.getElementById('uf-public').checked  = true;
+  document.getElementById('uf-steamid').disabled = false;
+  document.getElementById('uf-err').style.display = 'none';
+  document.getElementById('user-form').style.display = 'block';
+}
+
+function openEditUser(steamid, username, active, public_) {
+  userEditId = steamid;
+  document.getElementById('user-form-title').textContent = 'Edit User';
+  document.getElementById('uf-steamid').value    = steamid;
+  document.getElementById('uf-username').value   = username;
+  document.getElementById('uf-active').checked   = active;
+  document.getElementById('uf-public').checked   = public_;
+  document.getElementById('uf-steamid').disabled = true;
+  document.getElementById('uf-err').style.display = 'none';
+  document.getElementById('user-form').style.display = 'block';
+}
+
+document.getElementById('uf-cancel').addEventListener('click', () => {
+  document.getElementById('user-form').style.display = 'none';
+});
+
+document.getElementById('uf-submit').addEventListener('click', async () => {
+  const errEl    = document.getElementById('uf-err');
+  const steamid  = parseInt(document.getElementById('uf-steamid').value, 10);
+  const username = document.getElementById('uf-username').value.trim();
+  const active   = document.getElementById('uf-active').checked;
+  const public_  = document.getElementById('uf-public').checked;
+
+  errEl.style.display = 'none';
+  if (!steamid || !username) { errEl.textContent = 'Steam ID and username are required'; errEl.style.display = 'block'; return; }
+
+  let data;
+  if (userEditId === null) {
+    data = await apiPost('/admin/users/add', { steamid, username, active, public: public_ });
+  } else {
+    data = await apiPost('/admin/users/modify', { steamid, username, active, public: public_ });
+  }
+
+  if (data.ok) {
+    document.getElementById('user-form').style.display = 'none';
+    loadUsers();
+  } else {
+    errEl.textContent = data.reason;
+    errEl.style.display = 'block';
+  }
+});
+
+async function removeUser(steamid) {
+  if (!confirm(`Delete user ${steamid}? This cannot be undone.`)) return;
+  const data = await apiPost('/admin/users/remove', { steamid });
+  if (data.ok) loadUsers();
+  else alert(data.reason);
+}
+
+// ── Tokens Tab ────────────────────────────────────────────────────────────────
+async function loadTokens() {
+  document.getElementById('tokens-content').innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await apiGet('/admin/tokens');
+    if (!data.ok) {
+      document.getElementById('tokens-content').innerHTML = `<p class="err" style="padding:12px">${data.reason}</p>`;
+      return;
+    }
+    renderTokensTable(data.tokens || []);
+  } catch {
+    document.getElementById('tokens-content').innerHTML = `<p class="err" style="padding:12px">Network error</p>`;
+  }
+}
+
+function renderTokensTable(tokens) {
+  if (!tokens.length) {
+    document.getElementById('tokens-content').innerHTML = '<p style="padding:16px;color:var(--txt2)">No tokens found.</p>';
+    return;
+  }
+  const rows = tokens.map(t => `
+    <tr>
+      <td style="font-weight:600">${esc(t.name)}</td>
+      <td>${t.clearance}</td>
+      <td style="font-size:11px;color:var(--txt2)">${new Date(t.create_date).toLocaleString()}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteToken('${esc(t.name)}')">Delete</button>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('tokens-content').innerHTML = `
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Clearance</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+document.getElementById('btn-create-token').addEventListener('click', () => {
+  document.getElementById('tf-name').value = '';
+  document.getElementById('tf-clearance').value = '';
+  document.getElementById('tf-err').style.display = 'none';
+  document.getElementById('token-form').style.display = 'block';
+});
+
+document.getElementById('tf-cancel').addEventListener('click', () => {
+  document.getElementById('token-form').style.display = 'none';
+});
+
+document.getElementById('tf-submit').addEventListener('click', async () => {
+  const errEl    = document.getElementById('tf-err');
+  const name     = document.getElementById('tf-name').value.trim();
+  const clearance = parseInt(document.getElementById('tf-clearance').value, 10);
+
+  errEl.style.display = 'none';
+  if (!name || !clearance) { errEl.textContent = 'Name and clearance are required'; errEl.style.display = 'block'; return; }
+
+  const data = await apiPost('/admin/tokens/create', { name, clearance });
+  if (data.ok) {
+    document.getElementById('token-form').style.display = 'none';
+    showTokenModal(data.token);
+    loadTokens();
+  } else {
+    errEl.textContent = data.reason;
+    errEl.style.display = 'block';
+  }
+});
+
+async function deleteToken(name) {
+  if (!confirm(`Delete token "${name}"? This cannot be undone.`)) return;
+  const data = await apiPost('/admin/tokens/delete', { name });
+  if (data.ok) loadTokens();
+  else alert(data.reason);
+}
+
+// ── Token reveal modal ────────────────────────────────────────────────────────
+function showTokenModal(token) {
+  document.getElementById('token-reveal').textContent = token;
+  document.getElementById('token-modal').classList.add('open');
+}
+
+document.getElementById('token-copy').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('token-reveal').textContent);
+  document.getElementById('token-copy').textContent = 'Copied!';
+  setTimeout(() => { document.getElementById('token-copy').textContent = 'Copy'; }, 1500);
+});
+
+document.getElementById('token-close').addEventListener('click', () => {
+  document.getElementById('token-modal').classList.remove('open');
+});
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+(async function boot() {
+  const { name, token } = getCreds();
+  document.getElementById('cfg-name').value  = name;
+  document.getElementById('cfg-token').value = token;
+
+  if (name && token) {
+    try {
+      const data = await apiGet('/admin/test');
+      if (data.ok) {
+        setAuthStatus(true, data.clearance);
+        loadUsers();
+        return;
+      }
+    } catch {}
+  }
+  setAuthStatus(false);
+})();
+</script>
+</body>
+</html>

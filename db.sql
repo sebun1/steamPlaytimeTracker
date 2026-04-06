@@ -27,17 +27,21 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_steamid ON sessions(steamid);
 
--- Games (Cached)
--- Cache game information mentioned in sessions
--- Updates every hour
-CREATE TABLE IF NOT EXISTS games (
-    appid integer,
-    name text NOT NULL,
-    publisher text,
-    developer text,
-    header_image text,
-    recommendations integer,
-    PRIMARY KEY (appid)
+-- Auth Tokens
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(64)  NOT NULL UNIQUE,
+    salt        VARCHAR(64)  NOT NULL,
+    secret      VARCHAR(128) NOT NULL,
+    clearance   INT          NOT NULL,
+    create_date TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Metadata (key-value store for server state)
+CREATE TABLE IF NOT EXISTS metadata (
+    id   SERIAL PRIMARY KEY,
+    key  TEXT NOT NULL UNIQUE,
+    data TEXT NOT NULL
 );
 
 -- Registered Users

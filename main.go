@@ -130,7 +130,7 @@ func monitor(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, notifChan cha
 	defer wg.Done()
 	wgMonitor := sync.WaitGroup{}
 
-	ids, err := db.GetSteamIDs(ctx)
+	ids, err := db.GetActiveSteamIDs(ctx)
 
 	ticker := time.NewTicker(1 * time.Minute)
 
@@ -145,7 +145,7 @@ func monitor(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, notifChan cha
 			case notif := <-notifChan:
 				if notif.IsUserListUpdate() {
 					log.Info("Internal user list update request received.")
-					ids, err = db.GetSteamIDs(ctx)
+					ids, err = db.GetActiveSteamIDs(ctx)
 					if err != nil {
 						log.Error("Error while trying to get steam ids from db: ", err)
 					}
