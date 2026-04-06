@@ -561,8 +561,34 @@ a:hover { text-decoration: underline; }
 .sessions-table tbody tr:hover { background: var(--bg-hover); }
 
 /* Column widths */
-.col-game { min-width: 220px; }
-.col-dur  { white-space: nowrap; }
+.col-game  { min-width: 220px; }
+.col-appid { white-space: nowrap; }
+.col-dur   { white-space: nowrap; }
+
+/* App ID cell */
+.cell-appid {
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--txt-secondary);
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--txt-muted);
+  cursor: pointer;
+  vertical-align: middle;
+  transition: color .15s;
+}
+.copy-btn:hover { color: var(--accent); }
+.copy-btn--ok   { color: var(--green) !important; }
 
 /* Game cell */
 .game-cell {
