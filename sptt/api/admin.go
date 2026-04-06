@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,18 @@ func checkClearance(c *gin.Context, required int) bool {
 		return false
 	}
 	return true
+}
+
+func parseAdminSteamID(raw string) (sptt.SteamID, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false
+	}
+	v, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil || v == 0 {
+		return 0, false
+	}
+	return sptt.SteamID(v), true
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -125,7 +138,7 @@ func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
 	lastReload, _ := a.db.GetMetadata(a.ctx, sptt.MetaKeyLastUserReload)
 
 	type userRow struct {
-		SteamID  uint64 `json:"steamid"`
+		SteamID  string `json:"steamid"`
 		Username string `json:"username"`
 		Active   bool   `json:"active"`
 		Public   bool   `json:"public"`
@@ -133,12 +146,13 @@ func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
 
 	rows := make([]userRow, 0, len(users))
 	for _, u := range users {
-		rows = append(rows, userRow{
-			SteamID:  uint64(u.SteamID),
+		nextRow := userRow{
+			SteamID:  strconv.FormatUint(uint64(u.SteamID), 10),
 			Username: u.Username,
 			Active:   u.Active,
 			Public:   u.Public,
-		})
+		}
+		rows = append(rows, nextRow)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -157,12 +171,17 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 	}
 
 	var body struct {
-		SteamID  uint64 `json:"steamid"`
+		SteamID  string `json:"steamid"`
 		Username string `json:"username"`
 		Active   *bool  `json:"active"`
 		Public   *bool  `json:"public"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.SteamID == 0 || body.Username == "" {
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.Username) == "" {
+		c.JSON(http.StatusBadRequest, errResp("bad_request"))
+		return
+	}
+	id, ok := parseAdminSteamID(body.SteamID)
+	if !ok {
 		c.JSON(http.StatusBadRequest, errResp("bad_request"))
 		return
 	}
@@ -176,7 +195,7 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 		public = *body.Public
 	}
 
-	err := a.db.AddUser(a.ctx, sptt.SteamID(body.SteamID), body.Username, active, public)
+	err := a.db.AddUser(a.ctx, id, strings.TrimSpace(body.Username), active, public)
 	if err != nil {
 		if errors.Is(err, sptt.ErrDuplicateSteamID) {
 			c.JSON(http.StatusConflict, errResp("duplicate_steamid"))
@@ -197,14 +216,19 @@ func (a *SpttAPI) handleAdminRemoveUser(c *gin.Context) {
 	}
 
 	var body struct {
-		SteamID uint64 `json:"steamid"`
+		SteamID string `json:"steamid"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.SteamID == 0 {
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, errResp("bad_request"))
+		return
+	}
+	id, ok := parseAdminSteamID(body.SteamID)
+	if !ok {
 		c.JSON(http.StatusBadRequest, errResp("bad_request"))
 		return
 	}
 
-	err := a.db.RemoveUser(a.ctx, sptt.SteamID(body.SteamID))
+	err := a.db.RemoveUser(a.ctx, id)
 	if err != nil {
 		if errors.Is(err, sptt.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, errResp("not_found"))
@@ -225,17 +249,26 @@ func (a *SpttAPI) handleAdminModifyUser(c *gin.Context) {
 	}
 
 	var body struct {
-		SteamID  uint64  `json:"steamid"`
+		SteamID  string  `json:"steamid"`
 		Username *string `json:"username"`
 		Active   *bool   `json:"active"`
 		Public   *bool   `json:"public"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.SteamID == 0 {
+	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, errResp("bad_request"))
 		return
 	}
+	id, ok := parseAdminSteamID(body.SteamID)
+	if !ok {
+		c.JSON(http.StatusBadRequest, errResp("bad_request"))
+		return
+	}
+	if body.Username != nil {
+		trimmed := strings.TrimSpace(*body.Username)
+		body.Username = &trimmed
+	}
 
-	err := a.db.ModifyUser(a.ctx, sptt.SteamID(body.SteamID), sptt.ModifyUserParams{
+	err := a.db.ModifyUser(a.ctx, id, sptt.ModifyUserParams{
 		Username: body.Username,
 		Active:   body.Active,
 		Public:   body.Public,

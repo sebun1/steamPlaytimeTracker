@@ -610,12 +610,14 @@ func (d *DB) AddUser(ctx context.Context, id SteamID, username string, active, p
 
 // RemoveUser deletes a user row by steamid.
 func (d *DB) RemoveUser(ctx context.Context, id SteamID) error {
-	res, err := d.db.ExecContext(ctx, "DELETE FROM users WHERE steamid = $1", id)
+	query := "DELETE FROM users WHERE steamid = $1"
+	res, err := d.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapErr(err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
+		log.Debugf("RemoveUser 0 affected rows, query: %s with id: %v", query, id)
 		return ErrUserNotFound
 	}
 	return nil
