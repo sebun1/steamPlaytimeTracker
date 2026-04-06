@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────
 const API_BASE        = 'https://api.takina.io/sptt/v1';
 const STEAM_CDN       = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
-const STEAM_STORE_API = 'https://store.steampowered.com/api/appdetails';
+const STEAM_STORE_API = 'https://api.takina.io/proxy/steamstore/api/appdetails';
 const STEAM_STORE_URL = 'https://store.steampowered.com/app';
 
 // allorigins proxies the Steam Community XML through a CORS-safe endpoint.
