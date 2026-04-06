@@ -235,7 +235,8 @@ tbody tr:hover{background:var(--bg-hover)}
 <script>
 'use strict';
 
-const API = 'https://api.takina.io/sptt/v1';
+const API = 'http://localhost:8083';
+// const API = 'https://api.takina.io/sptt/v1';
 
 // ── Credentials ──────────────────────────────────────────────────────────────
 function getCreds() {
@@ -373,7 +374,6 @@ function renderUsersTable(users) {
     <tr>
       <td style="font-family:monospace;font-size:11px">${u.steamid}</td>
       <td>${esc(u.username)}</td>
-      <td>${esc(u.alias || '—')}</td>
       <td><span class="badge ${u.active ? 'badge-on' : 'badge-off'}">${u.active ? 'Yes' : 'No'}</span></td>
       <td><span class="badge ${u.public ? 'badge-on' : 'badge-off'}">${u.public ? 'Yes' : 'No'}</span></td>
       <td>
@@ -388,7 +388,7 @@ function renderUsersTable(users) {
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Steam ID</th><th>Username</th><th>Alias</th>
+          <th>Steam ID</th><th>Username</th>
           <th>Active</th><th>Public</th><th>Actions</th>
         </tr></thead>
         <tbody>${rows}</tbody>

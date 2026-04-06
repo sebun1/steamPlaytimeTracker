@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sebun1/steamPlaytimeTracker/log"
 	"github.com/sebun1/steamPlaytimeTracker/sptt"
 )
 
@@ -20,8 +21,8 @@ type adminResp struct {
 	Reason string `json:"reason"`
 }
 
-func okResp() adminResp                  { return adminResp{OK: true} }
-func errResp(reason string) adminResp    { return adminResp{OK: false, Reason: reason} }
+func okResp() adminResp               { return adminResp{OK: true} }
+func errResp(reason string) adminResp { return adminResp{OK: false, Reason: reason} }
 
 // clearanceFromCtx retrieves the caller's clearance stored by the middleware.
 func clearanceFromCtx(c *gin.Context) int {
@@ -35,6 +36,7 @@ func clearanceFromCtx(c *gin.Context) int {
 func checkClearance(c *gin.Context, required int) bool {
 	if clearanceFromCtx(c) < required {
 		c.JSON(http.StatusForbidden, errResp("bad_auth"))
+		log.Warnf("Unauthorized admin access attempt with clearance %d (required %d)", clearanceFromCtx(c), required)
 		return false
 	}
 	return true
@@ -46,7 +48,7 @@ func checkClearance(c *gin.Context, required int) bool {
 // X-Admin-Name and X-Admin-Token headers.
 func AdminAuthMiddleware(db *sptt.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		name  := c.GetHeader("X-Admin-Name")
+		name := c.GetHeader("X-Admin-Name")
 		token := c.GetHeader("X-Admin-Token")
 
 		clearance, ok := sptt.Authenticate(db, name, token)
@@ -101,10 +103,18 @@ func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
 		return
 	}
 
-	limit  := 50
+	limit := 50
 	offset := 0
-	if v := c.Query("limit");  v != "" { if n, err := strconv.Atoi(v); err == nil && n > 0 { limit  = n } }
-	if v := c.Query("offset"); v != "" { if n, err := strconv.Atoi(v); err == nil && n >= 0 { offset = n } }
+	if v := c.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if v := c.Query("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
 
 	users, total, err := a.db.GetUsers(a.ctx, limit, offset)
 	if err != nil {
@@ -115,27 +125,19 @@ func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
 	lastReload, _ := a.db.GetMetadata(a.ctx, sptt.MetaKeyLastUserReload)
 
 	type userRow struct {
-		SteamID    uint64 `json:"steamid"`
-		Username   string `json:"username"`
-		Alias      string `json:"alias"`
-		ProfileURL string `json:"profileurl"`
-		Avatar     string `json:"avatar"`
-		Timezone   string `json:"timezone"`
-		Active     bool   `json:"active"`
-		Public     bool   `json:"public"`
+		SteamID  uint64 `json:"steamid"`
+		Username string `json:"username"`
+		Active   bool   `json:"active"`
+		Public   bool   `json:"public"`
 	}
 
 	rows := make([]userRow, 0, len(users))
 	for _, u := range users {
 		rows = append(rows, userRow{
-			SteamID:    uint64(u.SteamID),
-			Username:   u.Username,
-			Alias:      u.Alias.String,
-			ProfileURL: u.ProfileURL.String,
-			Avatar:     u.Avatar.String,
-			Timezone:   u.Timezone.String,
-			Active:     u.Active,
-			Public:     u.Public,
+			SteamID:  uint64(u.SteamID),
+			Username: u.Username,
+			Active:   u.Active,
+			Public:   u.Public,
 		})
 	}
 
@@ -155,10 +157,10 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 	}
 
 	var body struct {
-		SteamID  uint64  `json:"steamid"`
-		Username string  `json:"username"`
-		Active   *bool   `json:"active"`
-		Public   *bool   `json:"public"`
+		SteamID  uint64 `json:"steamid"`
+		Username string `json:"username"`
+		Active   *bool  `json:"active"`
+		Public   *bool  `json:"public"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.SteamID == 0 || body.Username == "" {
 		c.JSON(http.StatusBadRequest, errResp("bad_request"))
@@ -167,8 +169,12 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 
 	active := true
 	public := true
-	if body.Active != nil { active = *body.Active }
-	if body.Public != nil { public = *body.Public }
+	if body.Active != nil {
+		active = *body.Active
+	}
+	if body.Public != nil {
+		public = *body.Public
+	}
 
 	err := a.db.AddUser(a.ctx, sptt.SteamID(body.SteamID), body.Username, active, public)
 	if err != nil {

@@ -48,10 +48,6 @@ CREATE TABLE IF NOT EXISTS metadata (
 CREATE TABLE IF NOT EXISTS users (
 	steamid bigint,
 	username text UNIQUE NOT NULL, -- Internal username
-	alias text, -- Steam display name
-	profileurl text, -- URL to Steam profile
-	avatar text, -- URL to avatar image
-	timezone text, -- TODO: Subject to change
 	active boolean NOT NULL,
 	public boolean NOT NULL,
 	PRIMARY KEY (steamid)

@@ -556,14 +556,10 @@ func (d *DB) AddGameCache(ctx context.Context, game GameCache) error {
 // --- Users (Admin) ---
 
 type User struct {
-	SteamID    SteamID
-	Username   string
-	Alias      sql.NullString
-	ProfileURL sql.NullString
-	Avatar     sql.NullString
-	Timezone   sql.NullString
-	Active     bool
-	Public     bool
+	SteamID  SteamID
+	Username string
+	Active   bool
+	Public   bool
 }
 
 // ErrDuplicateSteamID is returned when inserting a user that already exists.
@@ -580,7 +576,7 @@ func (d *DB) GetUsers(ctx context.Context, limit, offset int) ([]User, int64, er
 	}
 
 	rows, err := d.db.QueryContext(ctx,
-		"SELECT steamid, username, alias, profileurl, avatar, timezone, active, public FROM users ORDER BY steamid LIMIT $1 OFFSET $2",
+		"SELECT steamid, username, active, public FROM users ORDER BY steamid LIMIT $1 OFFSET $2",
 		limit, offset)
 	if err != nil {
 		return nil, 0, err
@@ -590,7 +586,7 @@ func (d *DB) GetUsers(ctx context.Context, limit, offset int) ([]User, int64, er
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.SteamID, &u.Username, &u.Alias, &u.ProfileURL, &u.Avatar, &u.Timezone, &u.Active, &u.Public); err != nil {
+		if err := rows.Scan(&u.SteamID, &u.Username, &u.Active, &u.Public); err != nil {
 			return nil, 0, err
 		}
 		users = append(users, u)
