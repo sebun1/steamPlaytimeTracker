@@ -276,7 +276,7 @@ function renderProfile() {
     <div class="profile-head">
       ${avatarEl}
       <div class="profile-name-block">
-        <div class="profile-name">${esc(p.displayName || state.steamId)}</div>
+        <div class="profile-name"><a href="https://steamcommunity.com/profiles/${esc(state.steamId)}" target="_blank" rel="noreferrer">${esc(p.displayName || state.steamId)}</a></div>
         <span class="status-badge ${statusClass}">
           <span class="dot"></span>${esc(statusLabel)}
         </span>

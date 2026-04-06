@@ -375,7 +375,10 @@
     }
     const rows = users.map(u => `
     <tr>
-      <td style="font-family:monospace;font-size:14px">${u.steamid}</td>
+      <td style="font-family:monospace;font-size:14px">
+        <a href="https://sptt.takina.io/?steamid=${escJS(u.steamid)}" target="_blank" rel="noreferrer">${u.steamid}</a>
+        [<a href="https://steamcommunity.com/profiles/${escJS(u.steamid)}" target="_blank" rel="noreferrer">steam</a>]
+      </td>
       <td>${esc(u.username)}</td>
       <td><span class="badge ${u.active ? 'badge-on' : 'badge-off'}">${u.active ? 'Yes' : 'No'}</span></td>
       <td><span class="badge ${u.public ? 'badge-on' : 'badge-off'}">${u.public ? 'Yes' : 'No'}</span></td>
