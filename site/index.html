@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPTT — Steam Playtime Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ── -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          <span>SPTT</span>
+        </div>
+        <form class="search-form" id="search-form">
+          <input
+            type="text"
+            id="steamid-input"
+            class="search-input"
+            placeholder="Steam ID64  (e.g. 76561198854733565)"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button type="submit" class="btn btn-primary">Load</button>
+        </form>
+      </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <main class="main-content">
+
+      <!-- Empty / landing state -->
+      <div id="empty-state" class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+        <h2>Steam Playtime Tracker</h2>
+        <p>Enter a Steam64 ID above to view playtime statistics and session history.</p>
+      </div>
+
+      <!-- User view (hidden until a user is loaded) -->
+      <div id="user-view" class="hidden">
+
+        <!-- Profile + Stats -->
+        <div class="top-row">
+          <div id="profile-card" class="profile-card"></div>
+          <div id="stats-grid" class="stats-grid"></div>
+        </div>
+
+        <!-- Currently Playing -->
+        <div id="active-section" class="card hidden">
+          <h3 class="section-title">
+            <span class="live-dot"></span> Currently Playing
+          </h3>
+          <div id="active-list" class="active-list"></div>
+        </div>
+
+        <!-- Sessions -->
+        <div class="card">
+          <div class="section-header">
+            <h3 class="section-title">Session History</h3>
+            <div class="section-controls">
+              <select class="select-input" id="page-size-select" title="Results per page">
+                <option value="20">20 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" id="filter-toggle" aria-expanded="false">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+                Filters
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Panel -->
+          <div id="filter-panel" class="filter-panel hidden">
+            <div class="filter-grid">
+              <div class="filter-group">
+                <label class="filter-label" for="f-appid">App ID</label>
+                <input type="number" class="filter-input" id="f-appid" placeholder="e.g. 440">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-start-from">Session Start — From</label>
+                <input type="datetime-local" class="filter-input" id="f-start-from">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-start-to">Session Start — To</label>
+                <input type="datetime-local" class="filter-input" id="f-start-to">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-end-from">Session End — From</label>
+                <input type="datetime-local" class="filter-input" id="f-end-from">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-end-to">Session End — To</label>
+                <input type="datetime-local" class="filter-input" id="f-end-to">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-pt-min">Lifetime Playtime Min (hrs)</label>
+                <input type="number" class="filter-input" id="f-pt-min" placeholder="0" min="0" step="0.5">
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="f-pt-max">Lifetime Playtime Max (hrs)</label>
+                <input type="number" class="filter-input" id="f-pt-max" placeholder="∞" min="0" step="0.5">
+              </div>
+              <div class="filter-group filter-actions">
+                <label class="filter-label">&nbsp;</label>
+                <div class="filter-btn-row">
+                  <button class="btn btn-primary" id="btn-apply">Apply</button>
+                  <button class="btn btn-ghost" id="btn-reset">Reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="table-wrap">
+            <table class="sessions-table">
+              <thead>
+                <tr>
+                  <th class="col-game sortable" data-col="appid">
+                    Game <span class="sort-ind" id="si-appid"></span>
+                  </th>
+                  <th class="sortable" data-col="utcstart">
+                    Started <span class="sort-ind" id="si-utcstart"></span>
+                  </th>
+                  <th class="sortable" data-col="utcend">
+                    Ended <span class="sort-ind" id="si-utcend"></span>
+                  </th>
+                  <th class="col-dur">Duration</th>
+                  <th class="sortable" data-col="playtime_forever">
+                    Lifetime Playtime <span class="sort-ind" id="si-playtime_forever"></span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="sessions-body"></tbody>
+            </table>
+            <div id="table-overlay" class="table-overlay hidden">
+              <div class="spinner"></div>
+            </div>
+          </div>
+
+          <div id="pagination" class="pagination"></div>
+        </div>
+
+      </div><!-- /user-view -->
+    </main>
+  </div><!-- /app -->
+
+  <script src="js/app.js"></script>
+</body>
+</html>
