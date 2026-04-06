@@ -71,11 +71,17 @@
           <div class="section-header">
             <h3 class="section-title">Session History</h3>
             <div class="section-controls">
-              <select class="select-input" id="page-size-select" title="Results per page">
-                <option value="20">20 / page</option>
-                <option value="50">50 / page</option>
-                <option value="100">100 / page</option>
-              </select>
+              <div class="custom-select" id="page-size-select" data-value="20" role="listbox" aria-label="Results per page" tabindex="0">
+                <div class="custom-select__trigger">
+                  <span class="custom-select__label">20 / page</span>
+                  <svg class="custom-select__arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="custom-select__dropdown">
+                  <div class="custom-select__option" data-value="20" role="option">20 / page</div>
+                  <div class="custom-select__option" data-value="50" role="option">50 / page</div>
+                  <div class="custom-select__option" data-value="100" role="option">100 / page</div>
+                </div>
+              </div>
               <button class="btn btn-ghost btn-sm" id="filter-toggle" aria-expanded="false">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>

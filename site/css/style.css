@@ -144,7 +144,6 @@ a:hover { text-decoration: underline; }
 /* ─────────────────────────────────────────
    Select / filter input
 ───────────────────────────────────────── */
-.select-input,
 .filter-input {
   padding: 7px 10px;
   background: var(--bg-input);
@@ -156,15 +155,69 @@ a:hover { text-decoration: underline; }
   transition: border-color .15s;
   width: 100%;
 }
-.select-input:focus,
 .filter-input:focus { border-color: var(--accent); }
 .filter-input::placeholder { color: var(--txt-muted); }
 .filter-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(.5) sepia(1) hue-rotate(180deg);
   cursor: pointer;
 }
-.select-input { width: auto; cursor: pointer; }
-.select-input option { background: var(--bg-elevated); }
+
+/* ── Custom Select ── */
+.custom-select {
+  position: relative;
+  user-select: none;
+  outline: none;
+}
+
+.custom-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  color: var(--txt-primary);
+  font: 13px/1 var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s;
+}
+.custom-select:focus .custom-select__trigger,
+.custom-select.open  .custom-select__trigger { border-color: var(--accent); }
+
+.custom-select__arrow {
+  flex-shrink: 0;
+  color: var(--txt-muted);
+  transition: transform .15s;
+}
+.custom-select.open .custom-select__arrow { transform: rotate(180deg); }
+
+.custom-select__dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow);
+  z-index: 300;
+  overflow: hidden;
+}
+.custom-select.open .custom-select__dropdown { display: block; }
+
+.custom-select__option {
+  padding: 8px 14px;
+  font: 13px/1 var(--font);
+  color: var(--txt-secondary);
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.custom-select__option:hover             { background: var(--bg-hover); color: var(--txt-primary); }
+.custom-select__option.selected          { color: var(--accent); }
+.custom-select__option + .custom-select__option { margin-top: 2px; }
 
 /* ─────────────────────────────────────────
    Layout utilities

@@ -563,7 +563,7 @@ async function loadSessions() {
   }
 
   setTableLoading(false);
-  document.getElementById('page-size-select').value = String(state.pageSize);
+  setCustomSelectValue(document.getElementById('page-size-select'), String(state.pageSize));
   renderSessions();
   renderPagination();
 }
@@ -602,6 +602,77 @@ function resetFilters() {
 }
 
 // ─────────────────────────────────────────
+// Custom Select
+// ─────────────────────────────────────────
+
+/**
+ * Initialise a .custom-select element.
+ * onChange(value) is called whenever the user picks an option.
+ */
+function initCustomSelect(el, onChange) {
+  const trigger  = el.querySelector('.custom-select__trigger');
+  const label    = el.querySelector('.custom-select__label');
+  const options  = el.querySelectorAll('.custom-select__option');
+
+  // Mark initial selected option
+  const currentVal = el.dataset.value;
+  options.forEach(o => o.classList.toggle('selected', o.dataset.value === currentVal));
+
+  // Toggle open/closed
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    el.classList.toggle('open');
+  });
+
+  // Pick an option
+  options.forEach(o => {
+    o.addEventListener('click', e => {
+      e.stopPropagation();
+      const value = o.dataset.value;
+      label.textContent = o.textContent;
+      el.dataset.value  = value;
+      options.forEach(opt => opt.classList.toggle('selected', opt === o));
+      el.classList.remove('open');
+      onChange(value);
+    });
+  });
+
+  // Keyboard: Enter/Space toggles, Escape closes, Up/Down navigates
+  el.addEventListener('keydown', e => {
+    const isOpen = el.classList.contains('open');
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      el.classList.toggle('open');
+    } else if (e.key === 'Escape') {
+      el.classList.remove('open');
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && isOpen) {
+      e.preventDefault();
+      const opts  = [...options];
+      const idx   = opts.findIndex(o => o.classList.contains('selected'));
+      const next  = e.key === 'ArrowDown'
+        ? opts[Math.min(idx + 1, opts.length - 1)]
+        : opts[Math.max(idx - 1, 0)];
+      next.click();
+    }
+  });
+
+  // Close when clicking outside
+  document.addEventListener('click', () => el.classList.remove('open'));
+}
+
+/** Programmatically update a custom-select's displayed value. */
+function setCustomSelectValue(el, value) {
+  const label   = el.querySelector('.custom-select__label');
+  const options = el.querySelectorAll('.custom-select__option');
+  options.forEach(o => {
+    const match = o.dataset.value === value;
+    o.classList.toggle('selected', match);
+    if (match) label.textContent = o.textContent;
+  });
+  el.dataset.value = value;
+}
+
+// ─────────────────────────────────────────
 // Event Handlers + Init
 // ─────────────────────────────────────────
 function init() {
@@ -627,9 +698,9 @@ function init() {
     });
   });
 
-  // ── Page size selector ──
-  document.getElementById('page-size-select').addEventListener('change', e => {
-    state.pageSize = parseInt(e.target.value, 10);
+  // ── Custom page-size dropdown ──
+  initCustomSelect(document.getElementById('page-size-select'), value => {
+    state.pageSize = parseInt(value, 10);
     state.page     = 0;
     loadSessions();
   });
