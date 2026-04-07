@@ -196,7 +196,7 @@ func (d *DB) RemoveSteamID(ctx context.Context, steamid []SteamID) error {
 type ActiveSession struct {
 	SteamID         SteamID
 	UTCStart        time.Time
-	PlaytimeForever uint32
+	PlaytimeForever int32 // -1 if private or error getting
 	AppID           AppID
 }
 
@@ -323,7 +323,7 @@ type Session struct {
 	SteamID         SteamID
 	UTCStart        time.Time
 	UTCEnd          time.Time
-	PlaytimeForever uint32
+	PlaytimeForever int32
 	AppID           AppID
 }
 

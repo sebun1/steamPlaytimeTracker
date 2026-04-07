@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -49,6 +50,13 @@ func init() {
 	}
 }
 
+type Application struct {
+	DB        *sptt.DB
+	SteamAPI  *sptt.SteamAPI
+	NotifChan chan sptt.Notif
+	UserIDs   []sptt.SteamID
+}
+
 func main() {
 	wg := sync.WaitGroup{}
 
@@ -67,6 +75,7 @@ func main() {
 		log.Fatal(err)
 		return
 	}
+
 	defer func(db *sptt.DB) {
 		err := db.Close()
 		if err != nil {
@@ -93,6 +102,7 @@ func main() {
 		return
 	}
 
+	// monitor <-> API server communication channel.
 	notifChan := make(chan sptt.Notif, 10)
 
 	port := "8080"
@@ -105,16 +115,31 @@ func main() {
 		corsOrigin = v
 	}
 
-	apiServer := api.NewSpttAPI(ctx, db, notifChan, &wg, ":"+port, corsOrigin)
+	apiServer := api.NewSptAPI(ctx, db, notifChan, &wg, ":"+port, corsOrigin)
+
+	ids, err := db.GetActiveSteamIDs(ctx)
+	if err != nil {
+		log.Fatal("Error while trying to get active steam ids from db: ", err)
+		return
+	}
+
+	app := &Application{
+		DB:        db,
+		SteamAPI:  stApi,
+		NotifChan: notifChan,
+		UserIDs:   ids,
+	}
 
 	// Run routines for stApi and monitor
-	wg.Add(2)
-	go monitor(ctx, db, stApi, notifChan, &wg)
+	wg.Add(1)
+	go app.monitor(ctx, &wg)
 	log.Info("Steam Playtime Tracker started.")
 
+	wg.Add(1)
 	go apiServer.Run()
 	log.Info("API server started on port ", port)
 
+	// Wait for shutdown signal
 	<-cancelChan
 	cancel()
 	log.Info("Shutting down Steam Playtime Tracker, waiting for routines to finish.")
@@ -124,68 +149,77 @@ func main() {
 }
 
 // Main process for monitoring games and
-// playtime sessions for differen steam
+// playtime sessions for different steam
 // users
-func monitor(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, notifChan chan sptt.Notif, wg *sync.WaitGroup) {
+func (app *Application) monitor(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
-	wgMonitor := sync.WaitGroup{}
+	monitorWg := &sync.WaitGroup{}
 
-	ids, err := db.GetActiveSteamIDs(ctx)
+	monitorWg.Add(2)
+	go monitorSignalHandler(ctx, app, monitorWg)
+	go monitorLoop(ctx, app, monitorWg)
+
+	monitorWg.Wait()
+}
+
+// Handles notifications for the monitor
+func monitorSignalHandler(ctx context.Context, app *Application, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case notif := <-app.NotifChan:
+			if notif.IsUserListUpdate() {
+				log.Info("Processing user list update...")
+				ids, err := app.DB.GetActiveSteamIDs(ctx)
+				if err != nil {
+					log.Error("Error while trying to get steam ids from db: ", err)
+					continue
+				}
+				app.UserIDs = ids
+				continue
+			}
+
+			log.Errorf("monitor: unknown notification received, type: %v payload: %v", notif.MessageType, notif.Payload)
+		}
+	}
+}
+
+// Main loop for minute-wise updates of user sessions
+func monitorLoop(ctx context.Context, app *Application, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	ticker := time.NewTicker(1 * time.Minute)
 
-	// Handle external updates
-	wgMonitor.Add(1)
-	go func() {
-		defer wgMonitor.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case notif := <-notifChan:
-				if notif.IsUserListUpdate() {
-					log.Info("Internal user list update request received.")
-					ids, err = db.GetActiveSteamIDs(ctx)
-					if err != nil {
-						log.Error("Error while trying to get steam ids from db: ", err)
-					}
-				} else {
-					log.Error("Unknown notification received on notifChan with message type: ", notif.MessageType, " and payload: ", notif.Payload)
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			log.Debug("Running user updates for", time.Now().UTC())
+			summaries, err := app.SteamAPI.GetPlayerSummaries(ctx, app.UserIDs)
+			if err != nil {
+				log.Error("Error while trying to get player summaries: ", err)
+				continue
 			}
-		}
-	}()
-
-	wgMonitor.Add(1)
-	go func() {
-		defer wgMonitor.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				log.Info("Running user updates for", time.Now().UTC())
-				summaries, err := api.GetPlayerSummaries(ctx, ids)
-				if err != nil {
-					log.Error("Error while trying to get player summaries: ", err)
+			for _, id := range app.UserIDs {
+				summary, ok := summaries[id]
+				if !ok {
+					log.Error("Summary for user ", id, " not found in summaries, skipping")
 					continue
 				}
-				for _, id := range ids {
-					summary, ok := summaries[id]
-					if !ok {
-						log.Error("Summary for user ", id, " not found in summaries, skipping")
-						continue
-					}
-					go updateUser(ctx, db, api, id, summary)
-				}
+				go app.processUser(ctx, id, summary)
 			}
 		}
-	}()
-	wgMonitor.Wait()
+	}
 }
 
-// Updates user sessions based on the user's current status
-func updateUser(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, id sptt.SteamID, summary sptt.PlayerSummary) {
+// Processes a user update
+func (app *Application) processUser(ctx context.Context, id sptt.SteamID, summary sptt.PlayerSummary) {
 	if summary.SteamID != id {
 		log.Error("SteamID mismatch, expected ", id, " got ", summary.SteamID)
 		log.Error("Skipping user ", id, "/", summary.SteamID)
@@ -193,129 +227,164 @@ func updateUser(ctx context.Context, db *sptt.DB, api *sptt.SteamAPI, id sptt.St
 	}
 
 	if summary.Visibility != 3 {
-		log.Debug("User ", id, " has a private profile")
-		log.Info("Releasing active sessions for user ", id)
-		err := db.RemoveActiveSessions(ctx, id)
+		log.Debugf("User %v has a private profile", id)
+		log.Infof("Releasing active_sessions for %v b/c private profile", id)
+		err := app.DB.RemoveActiveSessions(ctx, id)
 		if err != nil {
-			log.Error("Error while trying to remove active sessions for user ", id, ": ", err)
+			log.Errorf("Error removing active_sessions for %v: %v", id, err)
 		}
 		return
 	}
 
-	if summary.GameID == 0 {
-		log.Debug("User ", id, " is not in game")
-		activeSessions, err := db.GetActiveSessions(ctx, id)
+	// User in game
+	if summary.GameID != nil {
+		err := app.startSession(ctx, id, summary)
 		if err != nil {
-			log.Error("Error while trying to get active sessions for user ", id, ": ", err)
-			return
+			log.Error("Failed to start session for %v", id)
 		}
+		return
+	}
 
-		if len(activeSessions) == 0 {
-			log.Debug("User ", id, " has no active sessions, nothing to update")
-			return
-		} else {
-			log.Debug("User ", id, " has active sessions, releasing them")
-			now := time.Now().UTC().Truncate(time.Second)
+	// User not in game
+	log.Debugf("User %v is not in game", id)
+	activeSessions, err := app.DB.GetActiveSessions(ctx, id)
+	if err != nil {
+		log.Errorf("Error getting active_sessions for %v: %v", id, err)
+		return
+	}
 
-			appids := make([]sptt.AppID, 0, len(activeSessions))
-			for _, sess := range activeSessions {
-				appids = append(appids, sess.AppID)
-			}
-
-			games, err := api.GetOwnedGames(ctx, id, appids)
-			if err != nil {
-				log.Error("Error while trying to get owned games for user ", id, ": ", err)
-				return
-			}
-
-			for _, sess := range activeSessions {
-				if game, ok := games[sess.AppID]; ok {
-					playtimeDiffSteam := game.Playtime - sess.PlaytimeForever
-					playtimeDiffServer := uint32(now.Sub(sess.UTCStart).Abs().Minutes())
-
-					if playtimeDiffSteam == 0 {
-						log.Debug("No playtime difference for game ", sess.AppID, " for user ", id, ", deferring session to next minute")
-					} else {
-						newSession := sptt.Session{
-							SteamID:         id,
-							UTCStart:        sess.UTCStart,
-							PlaytimeForever: game.Playtime,
-							AppID:           sess.AppID,
-						}
-						// NOTE: This could be dangerous, we are making many assumptions here
-						if playtimeDiffServer-playtimeDiffSteam > 3 { // 3 minutes difference max
-							log.Warn("Significant playtime difference for ActiveSession ", sess, " for user ", id, ", durationSteam: ", playtimeDiffSteam, ", durationServer: ", playtimeDiffServer)
-							log.Info("Using Steam playtime as reference")
-
-							newSession.UTCEnd = sess.UTCStart.Add(time.Duration(playtimeDiffSteam) * time.Minute)
-						} else {
-							newSession.UTCEnd = now
-						}
-
-						err = db.AddSession(ctx, newSession)
-						if err != nil {
-							log.Error("Error while trying to add session for user ", id, ": ", err, "; session will be released anyways")
-						}
-
-						err = db.RemoveActiveSession(ctx, id, sess.AppID)
-						if err != nil {
-							log.Error("Error while trying to remove active session for user ", id, ": ", err)
-							return
-						}
-
-						log.Info("Released session for user ", id, " in game ", sess.AppID)
-					}
-				} else {
-					log.Error("Game ", sess.AppID, " not found in owned games for user ", id, ", releasing session")
-					err = db.RemoveActiveSession(ctx, id, sess.AppID)
-					if err != nil {
-
-					}
-				}
-			}
-		}
-	} else {
-		log.Debug("User ", id, " is in game ", summary.GameID)
-		activeSessions, err := db.GetActiveSessions(ctx, id)
+	if len(activeSessions) > 0 {
+		err := app.concludeSessions(ctx, id, activeSessions)
 		if err != nil {
-			log.Error("Error while trying to get active sessions for user ", id, ": ", err)
-			return
-		}
-
-		sessThisGame, alreadyPlaying := activeSessions[summary.GameID]
-
-		if len(activeSessions) == 0 || !alreadyPlaying {
-			var playtime uint32 = 0
-			game, err := api.GetOwnedGame(ctx, id, summary.GameID)
-			if err != nil {
-				if err == sptt.ErrEmptyGames {
-					log.Error("Can't get summary for game from GetOwnedGame, PlaytimeForever will be 0")
-				} else {
-					log.Error("Error while trying to get owned game for user ", id, ": ", err)
-					return
-				}
-			} else {
-				playtime = game.Playtime
-			}
-
-			// TODO: Add game cache here, game name, etc. iff that game is not in cache
-
-			log.Debug("User ", id, " has no active sessions, starting new session")
-			sess := sptt.ActiveSession{
-				SteamID:         id,
-				UTCStart:        time.Now().UTC().Truncate(time.Second),
-				PlaytimeForever: playtime,
-				AppID:           summary.GameID,
-			}
-
-			err = db.AddActiveSession(ctx, sess)
-			if err != nil {
-				log.Error("Error while trying to add active session for user ", id, ": ", err)
-				return
-			}
-			log.Info("Started new session for user ", id, " in game ", summary.GameID)
-		} else {
-			log.Debug("User ", id, " is already playing game ", summary.GameID, " since ", sessThisGame.UTCStart)
+			log.Errorf("Failed to conclude sessions for %v", id)
 		}
 	}
+}
+
+func (app *Application) startSession(ctx context.Context, id sptt.SteamID, summary sptt.PlayerSummary) error {
+	if summary.GameID == nil {
+		return fmt.Errorf("GameID is nil for %v, cannot start session", id)
+	}
+
+	gameId := *summary.GameID
+
+	activeSessions, err := app.DB.GetActiveSessions(ctx, id)
+	if err != nil {
+		log.Errorf("Error while trying to get active sessions for user %v: %v", id, err)
+		return err
+	}
+
+	existingSession, alreadyPlaying := activeSessions[gameId]
+
+	// if gameId is already in active sessions, do nothing
+	if alreadyPlaying {
+		log.Debugf("User %v is already playing game %v since %v", id, gameId, existingSession.UTCStart)
+		return nil
+	}
+
+	var playtime int32 = 0
+	game, err := app.SteamAPI.GetOwnedGame(ctx, id, gameId)
+	if err != nil && err != sptt.ErrEmptyGames {
+		log.Errorf("Error while trying to get owned game for user %v: %v", id, err)
+		return err
+	}
+
+	if err == sptt.ErrEmptyGames || game.Playtime2Weeks == nil {
+		log.Warnf("Games or playtime for user %v are empty/private, PlaytimeForever will be -1", id)
+		playtime = -1
+	} else {
+		playtime = game.Playtime
+	}
+
+	log.Debug("User %v has no active sessions, starting new session", id)
+	sess := sptt.ActiveSession{
+		SteamID:         id,
+		UTCStart:        time.Now().UTC().Truncate(time.Second),
+		PlaytimeForever: playtime,
+		AppID:           *summary.GameID,
+	}
+
+	err = app.DB.AddActiveSession(ctx, sess)
+	if err != nil {
+		log.Errorf("Error adding active session for %v: %v", id, err)
+		return err
+	}
+	log.Infof("Started new session for %v in game %v", id, summary.GameID)
+
+	return nil
+}
+
+func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, activeSessions map[sptt.AppID]sptt.ActiveSession) error {
+	log.Debug("User ", id, " has active sessions, releasing them")
+	now := time.Now().UTC().Truncate(time.Second)
+
+	appids := make([]sptt.AppID, 0, len(activeSessions))
+	for _, sess := range activeSessions {
+		appids = append(appids, sess.AppID)
+	}
+
+	games, err := app.SteamAPI.GetOwnedGames(ctx, id, appids)
+
+	// Case 3: Steam returned an empty response envelope - data is unavailable, defer to next cycle
+	if err == sptt.ErrEmptyResponse {
+		log.Warnf("GetOwnedGames returned empty response for user %v, deferring session conclusion", id)
+		return nil
+	}
+
+	if err != nil && err != sptt.ErrEmptyGames {
+		return fmt.Errorf("error getting owned games for user %v: %v", id, err)
+	}
+
+	// Case 1 (partial): ErrEmptyGames means the library is private or empty - no playtime data available
+	playtimeAvailable := err == nil
+	if !playtimeAvailable {
+		log.Warnf("Games for user %v are empty/private, concluding sessions without playtime_forever", id)
+	}
+
+	for _, sess := range activeSessions {
+		newSession := sptt.Session{
+			SteamID:  id,
+			UTCStart: sess.UTCStart,
+			AppID:    sess.AppID,
+		}
+
+		game, gameFound := games[sess.AppID]
+
+		if playtimeAvailable && gameFound {
+			// Case 2: playtime_forever is available from Steam
+			playtimeDiffSteam := game.Playtime - sess.PlaytimeForever
+			playtimeDiffServer := int32(now.Sub(sess.UTCStart).Abs().Minutes())
+
+			if playtimeDiffSteam == 0 {
+				log.Debugf("No playtime difference for game %v for user %v, deferring to next minute", sess.AppID, id)
+				continue
+			}
+
+			newSession.PlaytimeForever = game.Playtime
+			if playtimeDiffServer-playtimeDiffSteam > 3 {
+				log.Warnf("Significant playtime difference for game %v user %v: steam=%d server=%d minutes, using Steam's value", sess.AppID, id, playtimeDiffSteam, playtimeDiffServer)
+				newSession.UTCEnd = sess.UTCStart.Add(time.Duration(playtimeDiffSteam) * time.Minute)
+			} else {
+				newSession.UTCEnd = now
+			}
+		} else {
+			// Case 1: playtime_forever unavailable (library private/empty, or game missing from response)
+			if playtimeAvailable && !gameFound {
+				log.Errorf("Game %v not found in owned games for user %v, concluding without playtime_forever", sess.AppID, id)
+			}
+			newSession.PlaytimeForever = -1
+			newSession.UTCEnd = now
+		}
+
+		if err := app.DB.AddSession(ctx, newSession); err != nil {
+			log.Errorf("Error adding session for user %v game %v: %v; session will be released anyways", id, sess.AppID, err)
+		}
+
+		if err := app.DB.RemoveActiveSession(ctx, id, sess.AppID); err != nil {
+			return fmt.Errorf("error removing active_session for user %v: %v", id, err)
+		}
+
+		log.Infof("Released session for user %v in game %v", id, sess.AppID)
+	}
+	return nil
 }

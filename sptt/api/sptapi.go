@@ -17,7 +17,7 @@ const (
 	maxPageSize     int32 = 100
 )
 
-type SpttAPI struct {
+type SptAPI struct {
 	ctx        context.Context
 	db         *sptt.DB
 	notifChan  chan sptt.Notif
@@ -26,8 +26,8 @@ type SpttAPI struct {
 	corsOrigin string
 }
 
-func NewSpttAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup, addr string, corsOrigin string) *SpttAPI {
-	return &SpttAPI{
+func NewSptAPI(ctx context.Context, db *sptt.DB, notifChan chan sptt.Notif, wg *sync.WaitGroup, addr string, corsOrigin string) *SptAPI {
+	return &SptAPI{
 		ctx:        ctx,
 		db:         db,
 		notifChan:  notifChan,
@@ -54,7 +54,7 @@ func corsMiddleware(origin string) gin.HandlerFunc {
 	}
 }
 
-func (a *SpttAPI) Run() {
+func (a *SptAPI) Run() {
 	defer a.wg.Done()
 
 	r := gin.Default()
@@ -74,15 +74,15 @@ func (a *SpttAPI) Run() {
 	admin := r.Group("/admin")
 	admin.Use(AdminAuthMiddleware(a.db))
 	{
-		admin.GET("/test",               a.handleAdminTest)
-		admin.POST("/reload",            a.handleAdminReload)
-		admin.GET("/users",              a.handleAdminGetUsers)
-		admin.POST("/users/add",         a.handleAdminAddUser)
-		admin.POST("/users/remove",      a.handleAdminRemoveUser)
-		admin.POST("/users/modify",      a.handleAdminModifyUser)
-		admin.GET("/tokens",             a.handleAdminListTokens)
-		admin.POST("/tokens/create",     a.handleAdminCreateToken)
-		admin.POST("/tokens/delete",     a.handleAdminDeleteToken)
+		admin.GET("/test", a.handleAdminTest)
+		admin.POST("/reload", a.handleAdminReload)
+		admin.GET("/users", a.handleAdminGetUsers)
+		admin.POST("/users/add", a.handleAdminAddUser)
+		admin.POST("/users/remove", a.handleAdminRemoveUser)
+		admin.POST("/users/modify", a.handleAdminModifyUser)
+		admin.GET("/tokens", a.handleAdminListTokens)
+		admin.POST("/tokens/create", a.handleAdminCreateToken)
+		admin.POST("/tokens/delete", a.handleAdminDeleteToken)
 	}
 
 	srv := &http.Server{
@@ -238,7 +238,7 @@ func parseSessionQuery(c *gin.Context) sptt.SessionQuery {
 //
 // Query params: page, page_size, sort_by, sort_dir, app_id,
 // utcstart_from, utcstart_to, utcend_from, utcend_to, playtime_min, playtime_max
-func (a *SpttAPI) getSessions(c *gin.Context) {
+func (a *SptAPI) getSessions(c *gin.Context) {
 	id, ok := parseSteamID(c)
 	if !ok {
 		return
@@ -281,7 +281,7 @@ func (a *SpttAPI) getSessions(c *gin.Context) {
 }
 
 // GET /users/:id/active_sessions
-func (a *SpttAPI) getActiveSessions(c *gin.Context) {
+func (a *SptAPI) getActiveSessions(c *gin.Context) {
 	id, ok := parseSteamID(c)
 	if !ok {
 		return
@@ -312,7 +312,7 @@ type userStatsResponse struct {
 }
 
 // GET /users/:id/stats
-func (a *SpttAPI) getUserStats(c *gin.Context) {
+func (a *SptAPI) getUserStats(c *gin.Context) {
 	id, ok := parseSteamID(c)
 	if !ok {
 		return

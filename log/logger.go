@@ -60,7 +60,7 @@ func SetLevelFromString(level string) {
 
 func std_print(level int, v ...interface{}) {
 	if level >= log_level {
-		fmt.Print(time.Now().Format("2006-01-02 15:04:05.000") +
+		fmt.Print(time.Now().Format("2006-01-02 15:04:05") +
 			" " + label[level])
 		fmt.Println(v...)
 	}

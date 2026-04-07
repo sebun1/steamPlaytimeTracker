@@ -80,7 +80,7 @@ func AdminAuthMiddleware(db *sptt.DB) gin.HandlerFunc {
 
 // reloadActiveUsers pushes a UserListUpdate notification on the channel and
 // stamps the metadata with the current time.
-func reloadActiveUsers(a *SpttAPI) error {
+func reloadActiveUsers(a *SptAPI) error {
 	select {
 	case a.notifChan <- sptt.NotifUserListUpdate():
 	default:
@@ -93,7 +93,7 @@ func reloadActiveUsers(a *SpttAPI) error {
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 // GET /admin/test
-func (a *SpttAPI) handleAdminTest(c *gin.Context) {
+func (a *SptAPI) handleAdminTest(c *gin.Context) {
 	if !checkClearance(c, ClearanceNone) {
 		return
 	}
@@ -101,7 +101,7 @@ func (a *SpttAPI) handleAdminTest(c *gin.Context) {
 }
 
 // POST /admin/reload
-func (a *SpttAPI) handleAdminReload(c *gin.Context) {
+func (a *SptAPI) handleAdminReload(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
@@ -113,7 +113,7 @@ func (a *SpttAPI) handleAdminReload(c *gin.Context) {
 }
 
 // GET /admin/users?limit=50&offset=0
-func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
+func (a *SptAPI) handleAdminGetUsers(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminBase) {
 		return
 	}
@@ -167,7 +167,7 @@ func (a *SpttAPI) handleAdminGetUsers(c *gin.Context) {
 }
 
 // POST /admin/users/add
-func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
+func (a *SptAPI) handleAdminAddUser(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminBase) {
 		return
 	}
@@ -212,7 +212,7 @@ func (a *SpttAPI) handleAdminAddUser(c *gin.Context) {
 }
 
 // POST /admin/users/remove
-func (a *SpttAPI) handleAdminRemoveUser(c *gin.Context) {
+func (a *SptAPI) handleAdminRemoveUser(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
@@ -245,7 +245,7 @@ func (a *SpttAPI) handleAdminRemoveUser(c *gin.Context) {
 }
 
 // POST /admin/users/modify
-func (a *SpttAPI) handleAdminModifyUser(c *gin.Context) {
+func (a *SptAPI) handleAdminModifyUser(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
@@ -289,7 +289,7 @@ func (a *SpttAPI) handleAdminModifyUser(c *gin.Context) {
 }
 
 // GET /admin/tokens
-func (a *SpttAPI) handleAdminListTokens(c *gin.Context) {
+func (a *SptAPI) handleAdminListTokens(c *gin.Context) {
 	if !checkClearance(c, ClearanceNone) {
 		return
 	}
@@ -319,7 +319,7 @@ func (a *SpttAPI) handleAdminListTokens(c *gin.Context) {
 }
 
 // POST /admin/tokens/create
-func (a *SpttAPI) handleAdminCreateToken(c *gin.Context) {
+func (a *SptAPI) handleAdminCreateToken(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}
@@ -358,7 +358,7 @@ func (a *SpttAPI) handleAdminCreateToken(c *gin.Context) {
 }
 
 // POST /admin/tokens/delete
-func (a *SpttAPI) handleAdminDeleteToken(c *gin.Context) {
+func (a *SptAPI) handleAdminDeleteToken(c *gin.Context) {
 	if !checkClearance(c, ClearanceAdminModifyDelete) {
 		return
 	}

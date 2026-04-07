@@ -22,9 +22,10 @@ type SteamAPI struct {
 
 // Errors associated with Steam API operations
 const (
-	ErrForbidden   = APIError("API responded with 403 Forbidden")
-	ErrEmptyGames  = APIError("API returned 0 games")
-	RequestTimeout = 13
+	ErrForbidden     = APIError("API responded with 403 Forbidden")
+	ErrEmptyResponse = APIError("API returned empty response")
+	ErrEmptyGames    = APIError("API returned 0 games")
+	RequestTimeout   = 13
 )
 
 type APIError string
@@ -84,8 +85,7 @@ func (a *AppID) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Data Types for Steam API responses
-
+// GameData schema. Currently unused
 type GameData struct {
 	Name             string   `json:"name"`
 	AppID            AppID    `json:"steam_appid"`
@@ -135,12 +135,12 @@ type PlayerSummary struct {
 	Profileurl    string  `json:"profileurl"`
 	Avatar        string  `json:"avatarfull"`
 	Country       string  `json:"loccountrycode"`
-	GameID        AppID   `json:"gameid"`
-	Gameextrainfo string  `json:"gameextrainfo"`
+	GameID        *AppID  `json:"gameid"`
+	Gameextrainfo *string `json:"gameextrainfo"`
 }
 
 type PlayerSummaryResponse struct {
-	Response struct {
+	Response *struct {
 		Players []PlayerSummary `json:"players"`
 	} `json:"response"`
 }
@@ -181,6 +181,10 @@ func (s *SteamAPI) GetPlayerSummaries(ctx context.Context, steamids []SteamID) (
 		return nil, wrapErr(err)
 	}
 
+	if resp.Response == nil {
+		return nil, ErrEmptyResponse
+	}
+
 	allSummaries := resp.Response.Players
 
 	if len(allSummaries) != len(steamids) {
@@ -205,13 +209,14 @@ func (s *SteamAPI) GetGameDetails(ctx context.Context, appid AppID) (resp interf
 type OwnedGame struct {
 	AppID           AppID  `json:"appid"`
 	Name            string `json:"name"`
-	Playtime        uint32 `json:"playtime_forever"`      // in minutes
+	Playtime        int32  `json:"playtime_forever"`      // in minutes
+	Playtime2Weeks  *int32 `json:"playtime_2weeks"`       // in minutes, optional
 	RTimeLastPlayed uint32 `json:"rtime_last_played"`     // Unix timestamp
 	PlaytimeDc      uint32 `json:"playtime_disconnected"` // in minutes
 }
 
 type OwnedGamesResponse struct {
-	Response struct {
+	Response *struct {
 		GameCount uint        `json:"game_count"`
 		Games     []OwnedGame `json:"games"`
 	} `json:"response"`
@@ -273,8 +278,11 @@ func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []
 		return nil, wrapErr(err)
 	}
 
+	if resp.Response == nil {
+		return nil, ErrEmptyResponse
+	}
+
 	if resp.Response.GameCount == 0 || len(resp.Response.Games) == 0 {
-		log.Error("Steam API returned 0 games, this function should only be called with user owned game appids, returning error")
 		return nil, ErrEmptyGames
 	}
 
