@@ -1,0 +1,22 @@
+meta {
+  name: SptAPI User Sessions
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://localhost:8083/users/{{steamid1}}/sessions?page=0&page_size=20&sort_dir=desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 0
+  page_size: 20
+  sort_dir: desc
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
