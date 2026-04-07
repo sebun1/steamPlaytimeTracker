@@ -206,24 +206,24 @@ func (s *SteamAPI) GetGameDetails(ctx context.Context, appid AppID) (resp interf
 	return
 }
 
-type OwnedGame struct {
+type GameInfo struct {
 	AppID           AppID  `json:"appid"`
 	Name            string `json:"name"`
 	Playtime        int32  `json:"playtime_forever"`      // in minutes
-	Playtime2Weeks  *int32 `json:"playtime_2weeks"`       // in minutes, optional
-	RTimeLastPlayed uint32 `json:"rtime_last_played"`     // Unix timestamp
+	Playtime2Weeks  *int32 `json:"playtime_2weeks"`       // in minutes
 	PlaytimeDc      uint32 `json:"playtime_disconnected"` // in minutes
+	RTimeLastPlayed uint32 `json:"rtime_last_played"`     // Unix timestamp
 }
 
 type OwnedGamesResponse struct {
 	Response *struct {
-		GameCount uint        `json:"game_count"`
-		Games     []OwnedGame `json:"games"`
+		GameCount uint       `json:"game_count"`
+		Games     []GameInfo `json:"games"`
 	} `json:"response"`
 }
 
-func (s *SteamAPI) GetOwnedGame(ctx context.Context, steamid SteamID, appid AppID) (OwnedGame, error) {
-	game := OwnedGame{}
+func (s *SteamAPI) GetOwnedGame(ctx context.Context, steamid SteamID, appid AppID) (GameInfo, error) {
+	game := GameInfo{}
 	games, err := s.GetOwnedGames(ctx, steamid, []AppID{appid})
 	if err != nil {
 		return game, err
@@ -236,7 +236,7 @@ func (s *SteamAPI) GetOwnedGame(ctx context.Context, steamid SteamID, appid AppI
 	return game, nil
 }
 
-func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []AppID) (games map[AppID]OwnedGame, err error) {
+func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []AppID) (games map[AppID]GameInfo, err error) {
 	type inputJSON struct {
 		Steamid                uint64   `json:"steamid"`
 		IncludeAppInfo         bool     `json:"include_appinfo"`
@@ -287,11 +287,53 @@ func (s *SteamAPI) GetOwnedGames(ctx context.Context, steamid SteamID, appids []
 	}
 
 	allGames := resp.Response.Games
-	games = make(map[AppID]OwnedGame)
+	games = make(map[AppID]GameInfo)
 	for _, game := range allGames {
 		games[game.AppID] = game
 	}
 	return
+}
+
+type RecentGame struct {
+	AppID          AppID  `json:"appid"`
+	Name           string `json:"name"`
+	Playtime       int32  `json:"playtime_forever"` // in minutes
+	Playtime2Weeks *int32 `json:"playtime_2weeks"`  // in minutes
+}
+
+type RecentlyPlayedGamesResponse struct {
+	Response *struct {
+		GameCount uint         `json:"total_count"`
+		Games     []RecentGame `json:"games"`
+	} `json:"response"`
+}
+
+func (s *SteamAPI) GetRecentlyPlayedGames(ctx context.Context, steamid SteamID) (map[AppID]RecentGame, error) {
+	url := "https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=" + s.apiKey + "&steamid=" + steamid.String()
+
+	body, err := s.getRespBody(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp RecentlyPlayedGamesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, wrapErr(err)
+	}
+
+	if resp.Response == nil {
+		return nil, ErrEmptyResponse
+	}
+
+	if resp.Response.GameCount == 0 || len(resp.Response.Games) == 0 {
+		return nil, ErrEmptyGames
+	}
+
+	games := make(map[AppID]RecentGame, len(resp.Response.Games))
+	for _, game := range resp.Response.Games {
+		games[game.AppID] = game
+	}
+	return games, nil
 }
 
 // getRespBody sends a GET request to the given URL and returns the response body

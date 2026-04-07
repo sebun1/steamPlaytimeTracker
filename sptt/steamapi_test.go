@@ -38,4 +38,27 @@ func TestSteamAPI(t *testing.T) {
 			t.Errorf("Expected game to be valid, got invalid entry")
 		}
 	})
+
+	t.Run("GetRecentlyPlayedGames", func(t *testing.T) {
+		games, err := api.GetRecentlyPlayedGames(ctx, ids[0])
+		if err != nil && err != ErrEmptyGames {
+			t.Errorf("Expected nil or ErrEmptyGames, got %v", err)
+			return
+		}
+
+		if err == ErrEmptyGames {
+			t.Log("No recently played games for this account, skipping entry checks")
+			return
+		}
+
+		for _, game := range games {
+			t.Logf("%v (%v) => %v", game.Name, game.AppID, game.Playtime)
+			if game.AppID == 0 {
+				t.Errorf("Expected valid AppID, got 0")
+			}
+			if game.Name == "" {
+				t.Errorf("Expected non-empty Name for AppID %v", game.AppID)
+			}
+		}
+	})
 }
