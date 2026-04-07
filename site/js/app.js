@@ -73,11 +73,9 @@ function fmtPlaytime(minutes) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-const PLAYTIME_UNAVAILABLE_ICON = `<span class="playtime-unavailable" title="Steam playtime information unavailable">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-    <line x1="12" y1="17" x2="12.01" y2="17"/>
+const PLAYTIME_UNAVAILABLE_ICON = `<span class="playtime-unavailable" title="Steam playtime information unavailable.\nAs a result, overlapping sessions can overestimate length.">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+    <path d="M9.05.435c-.58-.58-1.52-.58-2.1 0L.436 6.95c-.58.58-.58 1.519 0 2.098l6.516 6.516c.58.58 1.519.58 2.098 0l6.516-6.516c.58-.58.58-1.519 0-2.098zM8 4c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995A.905.905 0 0 1 8 4m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
   </svg>
 </span>`;
 
@@ -106,6 +104,13 @@ function esc(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Decode HTML entities (e.g. Steam XML CDATA content like &gt; → >). */
+function decodeHtml(str) {
+  const el = document.createElement('div');
+  el.innerHTML = String(str ?? '');
+  return el.textContent ?? '';
 }
 
 /** Thumbnail URL for a Steam app. */
@@ -284,7 +289,7 @@ function renderProfile() {
     <div class="profile-head">
       ${avatarEl}
       <div class="profile-name-block">
-        <div class="profile-name"><a href="https://steamcommunity.com/profiles/${esc(state.steamId)}" target="_blank" rel="noreferrer">${esc(p.displayName || state.steamId)}</a></div>
+        <div class="profile-name"><a href="https://steamcommunity.com/profiles/${esc(state.steamId)}" target="_blank" rel="noreferrer">${esc(decodeHtml(p.displayName)) || esc(state.steamId)}</a></div>
         <span class="status-badge ${statusClass}">
           <span class="dot"></span>${esc(statusLabel)}
         </span>

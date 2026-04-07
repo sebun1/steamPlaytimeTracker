@@ -674,7 +674,7 @@ a:hover { text-decoration: underline; }
 .cell-time     { font-size: 12px; color: var(--txt-secondary); white-space: nowrap; }
 .cell-dur      { font-weight: 500; white-space: nowrap; }
 .cell-playtime { font-size: 12px; white-space: nowrap; }
-.playtime-unavailable { display: inline-flex; align-items: center; color: var(--txt-muted); cursor: help; }
+.playtime-unavailable { display: inline-flex; align-items: center; vertical-align: middle; color: var(--yellow); cursor: help; }
 
 /* Empty table row */
 .table-empty {
