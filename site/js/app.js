@@ -73,6 +73,14 @@ function fmtPlaytime(minutes) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+const PLAYTIME_UNAVAILABLE_ICON = `<span class="playtime-unavailable" title="Steam playtime information unavailable">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+</span>`;
+
 /**
  * Convert a date string (YYYY-MM-DD) to an RFC3339 UTC string.
  * boundary='start' clamps to 00:00:00 local, 'end' clamps to 23:59:59 local.
@@ -402,7 +410,7 @@ function renderSessions() {
       <td class="cell-time">${fmtLocalTime(s.utc_start)}</td>
       <td class="cell-time">${fmtLocalTime(s.utc_end)}</td>
       <td class="cell-dur">${fmtDuration(s.utc_start, s.utc_end)}</td>
-      <td class="cell-playtime">${fmtPlaytime(s.playtime_forever)}</td>
+      <td class="cell-playtime">${s.playtime_forever === -1 ? PLAYTIME_UNAVAILABLE_ICON : fmtPlaytime(s.playtime_forever)}</td>
     </tr>`).join('');
 
   renderStats();
