@@ -66,7 +66,7 @@ func TestSessions(t *testing.T) {
 	ctx := context.Background()
 
 	tm := time.Date(2024, time.November, 28, 12, 0, 0, 0, time.Local)
-	pt := uint32(128)
+	pt := int32(128)
 	appid := AppID(493520)
 	steamid := SteamID(76561198000000000)
 
@@ -75,7 +75,7 @@ func TestSessions(t *testing.T) {
 		err := db.AddActiveSession(ctx, ActiveSession{
 			SteamID:         steamid,
 			UTCStart:        tm,
-			PlaytimeForever: uint32(pt),
+			PlaytimeForever: pt,
 			AppID:           appid,
 		})
 		if err != nil {
