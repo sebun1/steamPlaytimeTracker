@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"sync"
@@ -354,14 +355,26 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 			// Case 2: playtime_forever is available from Steam and we have a baseline from session start
 			playtimeDiffSteam := game.Playtime - sess.PlaytimeForever
 			playtimeDiffServer := int32(now.Sub(sess.UTCStart).Abs().Minutes())
+			playtimeDiffDiff := math.Abs(float64(playtimeDiffServer - playtimeDiffSteam))
 
 			if playtimeDiffSteam == 0 {
-				log.Debugf("No playtime difference for game %v for user %v, deferring to next minute", sess.AppID, id)
+				log.Debugf("No playtime difference for game %v for user %v, defer if not too old (>3m)", sess.AppID, id)
+
+				if playtimeDiffServer <= 3 {
+					continue
+				}
+
+				if err := app.DB.RemoveActiveSession(ctx, id, sess.AppID); err != nil {
+					return fmt.Errorf("error removing active_session for user %v: %v", id, err)
+				}
+
+				log.Infof("Removed stale 0-playtime session for user %v in game %v after %d server minutes", id, sess.AppID, playtimeDiffServer)
+
 				continue
 			}
 
 			newSession.PlaytimeForever = game.Playtime
-			if playtimeDiffServer-playtimeDiffSteam > 3 {
+			if playtimeDiffDiff > 3 {
 				log.Warnf("Significant playtime difference for game %v user %v: steam=%d server=%d minutes, using Steam's value", sess.AppID, id, playtimeDiffSteam, playtimeDiffServer)
 				newSession.UTCEnd = sess.UTCStart.Add(time.Duration(playtimeDiffSteam) * time.Minute)
 			} else {
