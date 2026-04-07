@@ -15,6 +15,7 @@ import (
 	"github.com/sebun1/steamPlaytimeTracker/sptt/api"
 )
 
+var timeTolerance int32 = 3
 var env map[string]string
 
 func init() {
@@ -290,8 +291,12 @@ func (app *Application) startSession(ctx context.Context, id sptt.SteamID, summa
 		return err
 	}
 
-	if err == sptt.ErrEmptyGames || game.Playtime2Weeks == nil {
-		log.Warnf("Games or playtime for user %v are empty/private, PlaytimeForever will be -1", id)
+	// NOTE: used to assume absence of playtime_2weeks implies time hidden.
+	// This is INCORRECT - playtime_2weeks is also hidden if game is not played in the last 2 weeks, even if playtime_forever is visible.
+	// We now check if playtime is 0; however, this also overlooks the case where the game
+	// is newly added and never played -- need to be handled in concludeSessions.
+	if err == sptt.ErrEmptyGames || (game.Playtime2Weeks == nil && game.Playtime == 0) {
+		log.Warnf("Playtime of game for user %v is empty/private/new, PlaytimeForever will be recorded as -1", id)
 		playtime = -1
 	} else {
 		playtime = game.Playtime
@@ -358,9 +363,9 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 			playtimeDiffDiff := math.Abs(float64(playtimeDiffServer - playtimeDiffSteam))
 
 			if playtimeDiffSteam == 0 {
-				log.Debugf("No playtime difference for game %v for user %v, defer if not too old (>3m)", sess.AppID, id)
+				log.Debugf("No playtime difference for game %v for user %v, defer if not too old (>%vm)", sess.AppID, id, timeTolerance)
 
-				if playtimeDiffServer <= 3 {
+				if playtimeDiffServer <= timeTolerance {
 					continue
 				}
 
@@ -374,7 +379,7 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 			}
 
 			newSession.PlaytimeForever = game.Playtime
-			if playtimeDiffDiff > 3 {
+			if playtimeDiffDiff > float64(timeTolerance) {
 				log.Warnf("Significant playtime difference for game %v user %v: steam=%d server=%d minutes, using Steam's value", sess.AppID, id, playtimeDiffSteam, playtimeDiffServer)
 				newSession.UTCEnd = sess.UTCStart.Add(time.Duration(playtimeDiffSteam) * time.Minute)
 			} else {
@@ -385,10 +390,27 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 			// or session started without a playtime baseline (sess.PlaytimeForever == -1)
 			if playtimeAvailable && !gameFound {
 				log.Errorf("Game %v not found in owned games for user %v, concluding without playtime_forever", sess.AppID, id)
-			} else if sess.PlaytimeForever == -1 {
-				log.Warnf("Session for game %v user %v had no playtime baseline, concluding with server time only", sess.AppID, id)
 			}
-			newSession.PlaytimeForever = -1
+
+			if sess.PlaytimeForever == -1 && playtimeAvailable && gameFound {
+				// No baseline at session start, but Steam has data now.
+				// If game.Playtime ≈ server duration, this is a first-play (newly added game).
+				// Otherwise the profile was hidden at start — we have no valid baseline.
+				playtimeDiffServer := int32(now.Sub(sess.UTCStart).Abs().Minutes())
+				if math.Abs(float64(game.Playtime)-float64(playtimeDiffServer)) <= float64(timeTolerance) {
+					log.Infof("Game %v for user %v appears newly added (steam=%d ≈ server=%d min), recording playtime_forever", sess.AppID, id, game.Playtime, playtimeDiffServer)
+					newSession.PlaytimeForever = game.Playtime
+				} else {
+					log.Warnf("Game %v for user %v had no playtime baseline and steam playtime (%d) diverges from server duration (%d min), concluding without playtime_forever", sess.AppID, id, game.Playtime, playtimeDiffServer)
+					newSession.PlaytimeForever = -1
+				}
+			} else {
+				if sess.PlaytimeForever == -1 {
+					log.Warnf("Session for game %v user %v had no playtime baseline, concluding without playtime_forever", sess.AppID, id)
+				}
+				newSession.PlaytimeForever = -1
+			}
+
 			newSession.UTCEnd = now
 		}
 
