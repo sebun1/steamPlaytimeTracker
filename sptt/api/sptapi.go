@@ -143,14 +143,14 @@ type sessionResponse struct {
 	AppID           uint32 `json:"app_id"`
 	UTCStart        string `json:"utc_start"`
 	UTCEnd          string `json:"utc_end"`
-	PlaytimeForever uint32 `json:"playtime_forever"`
+	PlaytimeForever int32  `json:"playtime_forever"`
 }
 
 type activeSessionResponse struct {
 	SteamID         uint64 `json:"steam_id"`
 	AppID           uint32 `json:"app_id"`
 	UTCStart        string `json:"utc_start"`
-	PlaytimeForever uint32 `json:"playtime_forever"`
+	PlaytimeForever int32  `json:"playtime_forever"`
 }
 
 type paginatedSessions struct {
@@ -248,12 +248,14 @@ func (a *SptAPI) getSessions(c *gin.Context) {
 
 	totalCount, err := a.db.GetSessionCount(a.ctx, id, q.Filter)
 	if err != nil {
+		log.Errorf("GetSessionCount DB error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count sessions"})
 		return
 	}
 
 	sessions, err := a.db.GetSessions(a.ctx, id, q)
 	if err != nil {
+		log.Errorf("GetSessions DB error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get sessions"})
 		return
 	}
@@ -289,6 +291,7 @@ func (a *SptAPI) getActiveSessions(c *gin.Context) {
 
 	sessionsMap, err := a.db.GetActiveSessions(a.ctx, id)
 	if err != nil {
+		log.Errorf("GetActiveSessions DB error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get active sessions"})
 		return
 	}
@@ -320,6 +323,7 @@ func (a *SptAPI) getUserStats(c *gin.Context) {
 
 	totalSessions, err := a.db.GetSessionCount(a.ctx, id, sptt.SessionFilter{})
 	if err != nil {
+		log.Errorf("GetUserStats DB error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get stats"})
 		return
 	}

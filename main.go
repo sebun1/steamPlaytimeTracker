@@ -350,8 +350,8 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 
 		game, gameFound := games[sess.AppID]
 
-		if playtimeAvailable && gameFound {
-			// Case 2: playtime_forever is available from Steam
+		if playtimeAvailable && gameFound && sess.PlaytimeForever != -1 {
+			// Case 2: playtime_forever is available from Steam and we have a baseline from session start
 			playtimeDiffSteam := game.Playtime - sess.PlaytimeForever
 			playtimeDiffServer := int32(now.Sub(sess.UTCStart).Abs().Minutes())
 
@@ -368,9 +368,12 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 				newSession.UTCEnd = now
 			}
 		} else {
-			// Case 1: playtime_forever unavailable (library private/empty, or game missing from response)
+			// Case 1: playtime_forever unavailable — library private/empty, game missing from response,
+			// or session started without a playtime baseline (sess.PlaytimeForever == -1)
 			if playtimeAvailable && !gameFound {
 				log.Errorf("Game %v not found in owned games for user %v, concluding without playtime_forever", sess.AppID, id)
+			} else if sess.PlaytimeForever == -1 {
+				log.Warnf("Session for game %v user %v had no playtime baseline, concluding with server time only", sess.AppID, id)
 			}
 			newSession.PlaytimeForever = -1
 			newSession.UTCEnd = now
