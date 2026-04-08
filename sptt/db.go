@@ -631,6 +631,12 @@ type ModifyUserParams struct {
 	Public   *bool
 }
 
+// SetUserActive sets the active status of a user.
+func (d *DB) SetUserActive(ctx context.Context, id SteamID, active bool) error {
+	p := ModifyUserParams{Active: &active}
+	return d.ModifyUser(ctx, id, p)
+}
+
 // ModifyUser updates only the non-nil fields of a user row.
 func (d *DB) ModifyUser(ctx context.Context, id SteamID, p ModifyUserParams) error {
 	var setClauses []string

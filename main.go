@@ -53,10 +53,11 @@ func init() {
 }
 
 type Application struct {
-	DB        *sptt.DB
-	SteamAPI  *sptt.SteamAPI
-	NotifChan chan sptt.Notif
-	UserIDs   []sptt.SteamID
+	DB            *sptt.DB
+	SteamAPI      *sptt.SteamAPI
+	NotifChan     chan sptt.Notif
+	UserIDs       []sptt.SteamID
+	UserListDirty bool
 }
 
 func main() {
@@ -216,6 +217,17 @@ func monitorLoop(ctx context.Context, app *Application, wg *sync.WaitGroup) {
 				}
 				go app.processUser(ctx, id, summary)
 			}
+
+			if app.UserListDirty {
+				log.Info("User list is dirty, refreshing from DB")
+				ids, err := app.DB.GetActiveSteamIDs(ctx)
+				if err != nil {
+					log.Error("Error while trying to get active steam ids from db: ", err)
+					continue
+				}
+				app.UserIDs = ids
+				app.UserListDirty = false
+			}
 		}
 	}
 }
@@ -230,10 +242,14 @@ func (app *Application) processUser(ctx context.Context, id sptt.SteamID, summar
 
 	if summary.Visibility != 3 {
 		log.Debugf("User %v has a private profile", id)
-		log.Infof("Releasing active_sessions for %v b/c private profile", id)
+		log.Infof("Releasing active_sessions and deactivating %v b/c private profile", id)
 		err := app.DB.RemoveActiveSessions(ctx, id)
 		if err != nil {
 			log.Errorf("Error removing active_sessions for %v: %v", id, err)
+		}
+		err = app.DB.SetUserActive(ctx, id, false)
+		if err != nil {
+			log.Errorf("Error setting user %v inactive: %v", id, err)
 		}
 		return
 	}
@@ -330,6 +346,8 @@ func (app *Application) concludeSessions(ctx context.Context, id sptt.SteamID, a
 	}
 
 	games, err := app.SteamAPI.GetOwnedGames(ctx, id, appids)
+
+	// TODO: use GetRecentlyPlayedGames as backup or vice versa
 
 	// Case 3: Steam returned an empty response envelope - data is unavailable, defer to next cycle
 	if err == sptt.ErrEmptyResponse {
