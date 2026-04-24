@@ -251,6 +251,7 @@ func (app *Application) processUser(ctx context.Context, id sptt.SteamID, summar
 		if err != nil {
 			log.Errorf("Error setting user %v inactive: %v", id, err)
 		}
+		app.UserListDirty = true
 		return
 	}
 
