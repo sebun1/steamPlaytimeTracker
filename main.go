@@ -56,6 +56,7 @@ type Application struct {
 	DB            *sptt.DB
 	SteamAPI      *sptt.SteamAPI
 	NotifChan     chan sptt.Notif
+	UserIDsMu     sync.RWMutex
 	UserIDs       []sptt.SteamID
 	UserListDirty bool
 }
@@ -165,6 +166,19 @@ func (app *Application) monitor(ctx context.Context, wg *sync.WaitGroup) {
 	monitorWg.Wait()
 }
 
+func (app *Application) getUserIDsSnapshot() []sptt.SteamID {
+	app.UserIDsMu.RLock()
+	defer app.UserIDsMu.RUnlock()
+
+	return append([]sptt.SteamID(nil), app.UserIDs...)
+}
+
+func (app *Application) setUserIDs(ids []sptt.SteamID) {
+	app.UserIDsMu.Lock()
+	app.UserIDs = ids
+	app.UserIDsMu.Unlock()
+}
+
 // Handles notifications for the monitor
 func monitorSignalHandler(ctx context.Context, app *Application, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -182,7 +196,7 @@ func monitorSignalHandler(ctx context.Context, app *Application, wg *sync.WaitGr
 					log.Error("Error while trying to get steam ids from db: ", err)
 					continue
 				}
-				app.UserIDs = ids
+				app.setUserIDs(ids)
 				continue
 			}
 
@@ -204,12 +218,13 @@ func monitorLoop(ctx context.Context, app *Application, wg *sync.WaitGroup) {
 			return
 		case <-ticker.C:
 			log.Debug("Running user updates for", time.Now().UTC())
-			summaries, err := app.SteamAPI.GetPlayerSummaries(ctx, app.UserIDs)
+			ids := app.getUserIDsSnapshot()
+			summaries, err := app.SteamAPI.GetPlayerSummaries(ctx, ids)
 			if err != nil {
 				log.Error("Error while trying to get player summaries: ", err)
 				continue
 			}
-			for _, id := range app.UserIDs {
+			for _, id := range ids {
 				summary, ok := summaries[id]
 				if !ok {
 					log.Error("Summary for user ", id, " not found in summaries, skipping")
@@ -225,7 +240,7 @@ func monitorLoop(ctx context.Context, app *Application, wg *sync.WaitGroup) {
 					log.Error("Error while trying to get active steam ids from db: ", err)
 					continue
 				}
-				app.UserIDs = ids
+				app.setUserIDs(ids)
 				app.UserListDirty = false
 			}
 		}
